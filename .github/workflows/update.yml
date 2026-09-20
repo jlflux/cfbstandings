@@ -118,10 +118,10 @@ jobs:
 
       - name: Explain that Pages is not enabled
         if: steps.window.outputs.run == 'true' && steps.pages.outcome == 'failure'
-        run: |
-          echo "::notice title=Site built, not published::The site built fine, but this"\
-               "repository does not have GitHub Pages enabled. Turn it on under"\
-               "Settings -> Pages -> Source -> GitHub Actions and the next run will deploy."
+        run: >-
+          echo "::notice title=Site built, not published::The site built fine, but
+          GitHub Pages is not enabled for this repository. Turn it on under
+          Settings -> Pages -> Source -> GitHub Actions and the next run will deploy."
 
       - uses: actions/upload-pages-artifact@v3
         if: steps.window.outputs.run == 'true' && steps.pages.outcome == 'success'
@@ -130,7 +130,7 @@ jobs:
 
   deploy:
     needs: build
-    if: needs.build.outputs.ran == 'true'
+    if: needs.build.outputs.ran == 'true' && needs.build.outputs.pages == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
