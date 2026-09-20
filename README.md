@@ -142,7 +142,10 @@ to run into.
 There are no HTML files in the repository — `site/` is generated — so a Vercel
 project with no build step finds nothing to serve. `vercel.json` fixes that by
 running `build.sh`, which fetches from ESPN and renders into `site/` at deploy
-time. No dependencies to install; Vercel's build image already has Python.
+time. No dependencies to install; Vercel's build image already has Python. If
+ESPN is unreachable from the build, `build.sh` falls back to the committed
+`data/latest.json` snapshot so the deploy still produces a working site
+instead of failing.
 
 Vercel only rebuilds on a push or a deploy hook, so a deploy hook is what keeps
 a Vercel copy current. Create one under **Settings → Git → Deploy Hooks**, save
