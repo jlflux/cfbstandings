@@ -3,6 +3,8 @@ name: Probe ESPN
 # Run by hand to check that ESPN's responses still parse the way the client
 # expects - useful after a season rolls over or ESPN changes a payload.
 on:
+  push:
+    branches: ['claude/**']   # TEMP: validating ESPN parsing, removed before merge
   workflow_dispatch:
     inputs:
       season:
