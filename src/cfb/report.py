@@ -35,6 +35,11 @@ class Row:
     next_game: dict[str, Any] | None = None
     tiebreak_note: str = ""
     berth: str = ""
+    games_back: str = "—"
+    conf_diff: int = 0
+    opp_conf_pct: float = 0.0
+    opp_conf_record: str = "0-0"
+    conf_games: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -52,6 +57,12 @@ class ConferenceReport:
     short_name: str
     slug: str
     logo: str
+    tier: str
+    tier_label: str
+    accent: str
+    format_label: str
+    team_count: int
+    conf_games_played: int
     structure: str
     confidence: str
     verified_on: str
@@ -111,6 +122,47 @@ RANK_POLLS = (
 )
 
 
+def _opponents_conf_record(
+    season: Season, table: dict[str, TeamStanding], standing: TeamStanding
+) -> tuple[float, str]:
+    """Combined conference W-L of every conference opponent faced so far.
+
+    The same figure the SEC, Big Ten and Big 12 procedures use as a
+    strength-of-schedule step, shown on every row so the ordering is legible
+    without opening the tiebreaker notes.
+    """
+    wins = losses = 0
+    for game in standing.conference_games:
+        if not game.completed:
+            continue
+        opponent = table.get(game.opponent_of(standing.team_id))
+        if opponent is None:
+            continue
+        wins += opponent.conference.wins
+        losses += opponent.conference.losses
+    total = wins + losses
+    pct = wins / total if total else 0.0
+    return pct, f"{wins}-{losses}"
+
+
+def _games_back(leader: TeamStanding | None, standing: TeamStanding) -> str:
+    if leader is None or leader is standing:
+        return "—"
+    behind = ((leader.conference.wins - standing.conference.wins)
+              + (standing.conference.losses - leader.conference.losses)) / 2
+    if behind <= 0:
+        return "—"
+    return f"{behind:g}"
+
+
+def _conf_game_log(season: Season, standing: TeamStanding) -> list[dict[str, Any]]:
+    log = []
+    for game in sorted(standing.conference_games, key=lambda g: g.date):
+        brief = _game_brief(season, game, standing.team_id)
+        log.append(brief)
+    return log
+
+
 def _rank_of(season: Season, team_id: str) -> int | None:
     for poll in RANK_POLLS:
         for name, table in season.rankings.items():
@@ -144,12 +196,14 @@ def _build_rows(
 ) -> list[Row]:
     rows: list[Row] = []
     position = 0
+    leader = table[levels[0][0]] if levels and levels[0] else None
     for level in levels:
         position += 1
         for team_id in level:
             standing = table[team_id]
             team = season.teams.get(team_id)
             last, nxt = _last_and_next(season, standing)
+            opp_pct, opp_record = _opponents_conf_record(season, table, standing)
             rows.append(
                 Row(
                     team_id=team_id,
@@ -174,6 +228,11 @@ def _build_rows(
                     rank=_rank_of(season, team_id),
                     last_game=last,
                     next_game=nxt,
+                    games_back=_games_back(leader, standing),
+                    conf_diff=standing.conference.margin,
+                    opp_conf_pct=round(opp_pct, 4),
+                    opp_conf_record=opp_record,
+                    conf_games=_conf_game_log(season, standing),
                 )
             )
         position += len(level) - 1
@@ -276,12 +335,24 @@ def build_conference_report(
                 row.berth = "Championship game" if not contested else "In contention"
 
     unresolved = any(not n.resolved for n in notes)
+    played = sum(
+        1 for g in season.games
+        if g.completed and g.season_type == 2 and season.is_conference_game(g)
+        and season.conference_of(g.home_id) == conference.id
+    )
+    tier = rules.get("tier", "other")
     return ConferenceReport(
         id=conference.id,
         name=conference.name,
         short_name=conference.short_name or conference.name,
         slug=rules.get("slug", conference.slug or conference.id),
         logo=conference.logo,
+        tier=tier,
+        tier_label=TIER_LABEL.get(tier, ""),
+        accent=rules.get("accent", "#e5b93c"),
+        format_label=FORMAT_LABEL.get(structure, structure),
+        team_count=len(pool),
+        conf_games_played=played,
         structure=structure,
         confidence=rules.get("confidence", "none"),
         verified_on=rules.get("verified_on", ""),
@@ -294,7 +365,14 @@ def build_conference_report(
     )
 
 
-CONFERENCE_ORDER = ["1", "5", "4", "8", "151", "12", "15", "17", "9", "37", "18"]
+CONFERENCE_ORDER = ["8", "5", "4", "1", "151", "12", "15", "17", "37", "9", "18"]
+
+TIER_LABEL = {"p4": "Power Four", "g5": "Group of Five", "independent": "Independent"}
+FORMAT_LABEL = {
+    "single_table": "single-table format",
+    "divisions": "two divisions",
+    "no_championship": "no conference schedule",
+}
 
 
 def build_report(season: Season, rulebook: RuleBook) -> dict[str, Any]:
@@ -314,11 +392,18 @@ def build_report(season: Season, rulebook: RuleBook) -> dict[str, Any]:
 
     reports.sort(key=sort_key)
 
+    ranked = [r for r in reports if r.tier in ("p4", "g5")]
     return {
         "generated_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "season": season.year,
         "season_type": season.season_type,
         "week": season.week,
+        "league_count": len(ranked),
+        "conference_games_played": sum(r.conf_games_played for r in reports),
+        "season_label": (
+            "bowls and championships" if season.season_type == 3
+            else f"through week {season.week}"
+        ),
         "data_fetched_at": season.fetched_at,
         "conferences": [asdict(r) for r in reports],
         "scoreboard": build_scoreboard(season),

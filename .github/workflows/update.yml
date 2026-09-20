@@ -108,6 +108,29 @@ jobs:
             git push
           fi
 
+      # Optional: if the repository has a VERCEL_DEPLOY_HOOK secret, poke it so
+      # a Vercel-hosted copy rebuilds too. Vercel's Hobby plan caps daily
+      # deployments, so this fires only on the daily run unless
+      # VERCEL_HOOK_EVERY_RUN is set to "true".
+      - name: Trigger the Vercel deploy hook
+        if: steps.window.outputs.run == 'true'
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+          EVERY_RUN: ${{ vars.VERCEL_HOOK_EVERY_RUN }}
+          DAILY: ${{ steps.window.outputs.daily }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOOK:-}" ]; then
+            echo "No VERCEL_DEPLOY_HOOK secret set - nothing to trigger."
+            exit 0
+          fi
+          if [ "$DAILY" != "true" ] && [ "$EVERY_RUN" != "true" ]; then
+            echo "Not the daily run and VERCEL_HOOK_EVERY_RUN is not set - skipping."
+            exit 0
+          fi
+          code=$(curl -sS -X POST -o /dev/null -w '%{http_code}' "$HOOK")
+          echo "Vercel deploy hook responded $code"
+
       # Left to the repository owner to switch on, since it publishes a
       # public URL. Until then the build still runs and is still checked,
       # it just has nowhere to deploy to.

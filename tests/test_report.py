@@ -54,6 +54,86 @@ class PreseasonTests(unittest.TestCase):
         self.assertEqual(table["1"].conference.label, "2-0")
 
 
+class TableFieldTests(unittest.TestCase):
+    """The columns the standings table renders: win share, GB, diff and the
+    opponents' conference record shown under each team."""
+
+    def season(self):
+        return make_season(
+            {"Southeastern Conference": ["Ash", "Birch", "Cedar", "Dogwood"]},
+            [
+                ("Ash", "Birch", 28, 7),      # Ash +21
+                ("Ash", "Cedar", 24, 10),     # Ash +14
+                ("Birch", "Cedar", 20, 17),
+                ("Cedar", "Dogwood", 14, 10),
+                ("Birch", "Dogwood", 31, 3),
+            ],
+        )
+
+    def rows(self):
+        report = build_report(self.season(), load_rules(2026))
+        return {r["name"]: r for r in report["conferences"][0]["blocks"][0]["rows"]}
+
+    def test_conference_point_differential(self):
+        rows = self.rows()
+        self.assertEqual(rows["Ash"]["conf_diff"], 35)        # +21 and +14
+        self.assertEqual(rows["Dogwood"]["conf_diff"], -32)   # -4 and -28
+
+    def test_games_back_from_the_leader(self):
+        rows = self.rows()
+        self.assertEqual(rows["Ash"]["games_back"], "—")      # 2-0, the leader
+        self.assertEqual(rows["Birch"]["games_back"], "0.5")  # 2-1
+        self.assertEqual(rows["Dogwood"]["games_back"], "2")  # 0-2
+
+    def test_opponents_conference_record(self):
+        rows = self.rows()
+        # Ash played Birch (2-1) and Cedar (1-2): 3-3 combined.
+        self.assertEqual(rows["Ash"]["opp_conf_record"], "3-3")
+        self.assertAlmostEqual(rows["Ash"]["opp_conf_pct"], 0.5)
+
+    def test_win_share_matches_the_conference_percentage(self):
+        rows = self.rows()
+        self.assertEqual(rows["Ash"]["conf_pct"], 1.0)
+        self.assertAlmostEqual(rows["Birch"]["conf_pct"], 2 / 3, places=3)
+
+    def test_each_row_carries_its_conference_game_log(self):
+        rows = self.rows()
+        log = rows["Ash"]["conf_games"]
+        self.assertEqual(len(log), 2)
+        self.assertEqual({g["opponent"] for g in log}, {"Birch", "Cedar"})
+        self.assertTrue(all(g["result"] == "W" for g in log))
+
+    def test_conferences_carry_tier_and_accent_for_the_picker(self):
+        report = build_report(self.season(), load_rules(2026))
+        conf = report["conferences"][0]
+        self.assertEqual(conf["tier"], "p4")
+        self.assertEqual(conf["tier_label"], "Power Four")
+        self.assertTrue(conf["accent"].startswith("#"))
+        self.assertEqual(conf["format_label"], "single-table format")
+        self.assertEqual(conf["team_count"], 4)
+
+
+class TieOrderTests(unittest.TestCase):
+    def test_better_record_reads_first_inside_an_unbroken_tie(self):
+        # Two ACC teams on the same percentage but different slates; the ACC
+        # procedure cannot separate them, so the better record leads.
+        season = make_season(
+            {"Atlantic Coast Conference": ["Ash", "Birch", "Cedar", "Dogwood"]},
+            [
+                ("Ash", "Cedar", 21, 14),
+                ("Ash", "Dogwood", 28, 10),
+                ("Birch", "Cedar", 17, 14),
+            ],
+        )
+        report = build_report(season, load_rules(2026))
+        rows = [r for b in report["conferences"][0]["blocks"] for r in b["rows"]]
+        self.assertEqual([r["name"] for r in rows[:2]], ["Ash", "Birch"])
+        self.assertEqual(rows[0]["conf_record"], "2-0")
+        self.assertEqual(rows[1]["conf_record"], "1-0")
+        self.assertEqual(rows[0]["position"], rows[1]["position"], "still one tie")
+        self.assertEqual(rows[1]["games_back"], "0.5")
+
+
 class DivisionTests(unittest.TestCase):
     def test_sun_belt_style_divisions_produce_two_blocks(self):
         season = make_season(

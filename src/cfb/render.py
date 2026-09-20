@@ -1,7 +1,7 @@
 """Static site generation.
 
 Plain string templating on purpose: no template engine, no build step, and
-the output is a handful of files that can be served from GitHub Pages.
+the output is a handful of files any static host can serve.
 """
 
 from __future__ import annotations
@@ -24,16 +24,30 @@ CONFIDENCE_LABEL = {
     "none": "No published procedure on file",
 }
 
+TIER_ROWS = [("p4", "P4"), ("g5", "G5"), ("independent", "IND")]
+
 
 def esc(value: Any) -> str:
     return html.escape(str(value if value is not None else ""))
 
 
-def _fmt_pct(value: float) -> str:
-    return f"{value:.3f}".lstrip("0") or ".000"
+def _pct(value: float) -> str:
+    text = f"{value:.3f}"
+    return text if value >= 1 else text.lstrip("0")
 
 
-def _kickoff_label(iso: str) -> str:
+def _record(label: str) -> str:
+    """7-1 reads as 7–1 in the table."""
+    return esc(label).replace("-", "&#8211;")
+
+
+def _diff(value: int) -> str:
+    css = "pos" if value > 0 else ("neg" if value < 0 else "flat")
+    sign = "+" if value > 0 else ""
+    return f'<span class="diff {css}">{sign}{value}</span>'
+
+
+def _kickoff(iso: str) -> str:
     if not iso:
         return ""
     try:
@@ -43,266 +57,333 @@ def _kickoff_label(iso: str) -> str:
     return moment.strftime("%b %-d")
 
 
-def _game_cell(game: dict[str, Any] | None, upcoming: bool = False) -> str:
-    if not game:
-        return '<span class="muted">—</span>'
-    opponent = esc(game["opponent"])
-    prefix = "" if game.get("neutral") else ("" if game.get("home") else "@ ")
-    if upcoming:
-        when = _kickoff_label(game.get("date", ""))
-        tv = f' <span class="tv">{esc(game["broadcast"])}</span>' if game.get("broadcast") else ""
-        return f'<span class="opp">{prefix}{opponent}</span> <span class="when">{when}</span>{tv}'
-    result = game.get("result") or ""
-    css = {"W": "win", "L": "loss"}.get(result, "tie")
-    score = f'{game.get("score_for")}-{game.get("score_against")}'
-    return (
-        f'<span class="res {css}">{esc(result)}</span> '
-        f'<span class="score">{esc(score)}</span> '
-        f'<span class="opp">{prefix}{opponent}</span>'
-    )
-
-
-def _team_cell(row: dict[str, Any]) -> str:
-    rank = f'<span class="rank">{row["rank"]}</span>' if row.get("rank") else ""
-    logo = (
-        f'<img class="logo" src="{esc(row["logo"])}" alt="" loading="lazy" width="20" height="20">'
-        if row.get("logo") else '<span class="logo placeholder"></span>'
-    )
-    berth = ""
-    if row.get("berth") == "Championship game":
-        berth = '<span class="berth" title="In the projected championship game">◆</span>'
+# --------------------------------------------------------------------------
+# standings table
+# --------------------------------------------------------------------------
+def _badges(row: dict[str, Any]) -> str:
+    out = []
+    if row.get("berth") in ("Championship game", "Division leader"):
+        out.append('<span class="tag ccg" title="In the projected championship game">CCG</span>')
     elif row.get("berth") == "In contention":
-        berth = '<span class="berth contested" title="Tied for a championship-game berth">◇</span>'
-    elif row.get("berth") == "Division leader":
-        berth = '<span class="berth" title="Division leader">◆</span>'
-    tied = ""
+        out.append('<span class="tag hold" title="Tied for a championship-game berth">CCG?</span>')
     if row.get("tied_with"):
-        tied = '<span class="tied-flag" title="Tie not resolved by the published procedure">T</span>'
-    return f'{logo}{rank}<span class="team-name">{esc(row["name"])}</span>{berth}{tied}'
-
-
-def _standings_table(block: dict[str, Any], show_title: bool) -> str:
-    title = f'<h3 class="block-title">{esc(block["title"])}</h3>' if show_title else ""
-    rows = []
-    for row in block["rows"]:
-        rows.append(
-            "<tr>"
-            f'<td class="pos">{row["position"]}</td>'
-            f'<td class="team">{_team_cell(row)}</td>'
-            f'<td class="num">{esc(row["conf_record"])}</td>'
-            f'<td class="num pct">{_fmt_pct(row["conf_pct"])}</td>'
-            f'<td class="num">{esc(row["overall_record"])}</td>'
-            f'<td class="num hide-sm">{row["conf_pf"]}</td>'
-            f'<td class="num hide-sm">{row["conf_pa"]}</td>'
-            f'<td class="num hide-sm">{esc(row["streak"])}</td>'
-            f'<td class="game">{_game_cell(row.get("last_game"))}</td>'
-            f'<td class="game hide-sm">{_game_cell(row.get("next_game"), upcoming=True)}</td>'
-            "</tr>"
+        out.append(
+            '<span class="tag tied" title="Tie the published procedure cannot '
+            'settle from public data">TIED</span>'
         )
+    return "".join(out)
+
+
+def _game_log(row: dict[str, Any]) -> str:
+    games = row.get("conf_games") or []
+    if not games:
+        return '<p class="log-empty">No conference games played yet.</p>'
+    items = []
+    for game in games:
+        if game.get("completed"):
+            result = game.get("result") or ""
+            css = {"W": "win", "L": "loss"}.get(result, "tie")
+            score = f'{game.get("score_for")}&#8211;{game.get("score_against")}'
+            right = f'<span class="lg-res {css}">{esc(result)}</span><span class="lg-score">{score}</span>'
+        else:
+            right = f'<span class="lg-when">{esc(_kickoff(game.get("date", "")))}</span>'
+        where = "" if game.get("neutral") else ("vs " if game.get("home") else "at ")
+        items.append(
+            f'<li><span class="lg-opp">{where}{esc(game["opponent"])}</span>{right}</li>'
+        )
+    return f'<ul class="log">{"".join(items)}</ul>'
+
+
+def _row(row: dict[str, Any], index: int) -> str:
+    share = max(0.0, min(1.0, row.get("conf_pct", 0.0))) * 100
+    rank = f'<span class="ap">{row["rank"]}</span>' if row.get("rank") else ""
+    detail_id = f'g-{esc(row["team_id"])}'
+    return f"""<tr class="team-row">
+  <td class="pos">{row["position"]}</td>
+  <td class="team">
+    <button class="team-toggle" type="button" aria-expanded="false" aria-controls="{detail_id}">
+      {rank}<span class="name">{esc(row["name"])}</span>{_badges(row)}<span class="caret" aria-hidden="true">&#9654;</span>
+    </button>
+    <div class="subline">&#8627; opponents' conf win% &middot;
+      <b>{_pct(row.get("opp_conf_pct", 0.0))}</b>
+      ({_record(row.get("opp_conf_record", "0-0"))})</div>
+  </td>
+  <td class="share">
+    <div class="bar"><span style="width:{share:.1f}%"></span></div>
+    <div class="bar-foot"><span>{_record(row["conf_record"])}</span><span>{_pct(row.get("conf_pct", 0.0))}</span></div>
+  </td>
+  <td class="conf">{_record(row["conf_record"])}</td>
+  <td class="overall">{_record(row["overall_record"])}</td>
+  <td class="gb">{esc(row.get("games_back", "&mdash;")) if row.get("games_back") != "—" else "&mdash;"}</td>
+  <td class="dif">{_diff(row.get("conf_diff", 0))}</td>
+</tr>
+<tr class="detail" id="{detail_id}" hidden>
+  <td colspan="7">{_game_log(row)}</td>
+</tr>"""
+
+
+def _table(block: dict[str, Any], show_title: bool) -> str:
+    title = (
+        f'<h3 class="block-title">{esc(block["title"])}</h3>' if show_title else ""
+    )
+    rows = "".join(_row(row, index) for index, row in enumerate(block["rows"]))
     return f"""{title}
 <div class="table-wrap">
 <table class="standings">
-  <thead>
-    <tr>
-      <th class="pos">#</th><th class="team">Team</th>
-      <th class="num">Conf</th><th class="num">Pct</th><th class="num">Overall</th>
-      <th class="num hide-sm">PF</th><th class="num hide-sm">PA</th><th class="num hide-sm">Strk</th>
-      <th class="game">Last</th><th class="game hide-sm">Next</th>
-    </tr>
-  </thead>
-  <tbody>
-    {''.join(rows)}
-  </tbody>
+  <thead><tr>
+    <th class="pos">#</th>
+    <th class="team">Team</th>
+    <th class="share">Win share</th>
+    <th class="conf">Conf</th>
+    <th class="overall">Overall</th>
+    <th class="gb">GB</th>
+    <th class="dif">Diff</th>
+  </tr></thead>
+  <tbody>{rows}</tbody>
 </table>
 </div>"""
 
 
-def _championship_line(report: dict[str, Any]) -> str:
-    champ = report.get("championship") or {}
-    teams = champ.get("teams") or []
-    if not teams:
-        return ""
-    if champ.get("format") == "division champions":
-        parts = []
-        for entry in teams:
-            mark = " (contested)" if entry.get("contested") else ""
-            parts.append(f'{esc(entry["division"])}: <b>{esc(entry["team"])}</b>{mark}')
-        body = " &nbsp;·&nbsp; ".join(parts)
-    else:
-        names = " vs. ".join(f'<b>{esc(t["team"])}</b>' for t in teams)
-        body = names + (" — berths still contested" if champ.get("contested") else "")
-    return f'<p class="champ"><span class="champ-label">Championship game</span> {body}</p>'
-
-
-def _notes_block(report: dict[str, Any]) -> str:
+def _notes(report: dict[str, Any]) -> str:
     notes = report.get("notes") or []
     if not notes:
         return ""
     items = []
     for note in notes:
         tied = ", ".join(esc(t) for t in note["tied"])
-        detail_rows = "".join(
-            f'<li><b>{esc(team)}</b>: {esc(value)}</li>'
+        detail = "".join(
+            f'<li><b>{esc(team)}</b><span>{esc(value)}</span></li>'
             for team, value in (note.get("details") or {}).items()
         )
         if note["resolved"]:
             outcome = " &rarr; ".join(
                 " / ".join(esc(t) for t in level) for level in note["outcome"]
             )
+            head = (
+                f'<span class="badge ok">broken</span>{tied} '
+                f'<span class="at">tied at {_record(note["at_record"])}</span>'
+            )
             body = (
-                f'<div class="note-head"><span class="badge ok">resolved</span> '
-                f'{tied} tied at {esc(note["at_record"])}</div>'
-                f'<div class="note-step">{esc(note["step_label"])} — {esc(note["summary"])}</div>'
-                f'<div class="note-outcome">{outcome}</div>'
+                f'<div class="note-step">{esc(note["step_label"])}</div>'
+                f'<div class="note-out">{outcome}</div>'
             )
         else:
-            body = (
-                f'<div class="note-head"><span class="badge warn">unresolved</span> '
-                f'{tied} tied at {esc(note["at_record"])}</div>'
-                f'<div class="note-step">{esc(note["summary"])}</div>'
+            head = (
+                f'<span class="badge warn">unbroken</span>{tied} '
+                f'<span class="at">tied at {_record(note["at_record"])}</span>'
             )
-        extra = f'<ul class="note-detail">{detail_rows}</ul>' if detail_rows else ""
-        items.append(f'<li class="note">{body}{extra}</li>')
+            body = f'<div class="note-step">{esc(note["summary"])}</div>'
+        extra = f'<ul class="note-detail">{detail}</ul>' if detail else ""
+        items.append(f'<li class="note"><div class="note-head">{head}</div>{body}{extra}</li>')
     return (
-        '<details class="notes"><summary>Tiebreakers applied '
-        f'({len(notes)})</summary><ul>{"".join(items)}</ul></details>'
+        f'<details class="panel notes"><summary>How the ties broke '
+        f'<span class="count">{len(notes)}</span></summary>'
+        f'<ul>{"".join(items)}</ul></details>'
     )
 
 
-def _rules_footer(report: dict[str, Any]) -> str:
+def _rules(report: dict[str, Any]) -> str:
     confidence = report.get("confidence", "none")
     sources = "".join(
         f'<a href="{esc(url)}" rel="noopener">source {i + 1}</a>'
         for i, url in enumerate(report.get("sources") or [])
     )
-    verified = f' · verified {esc(report["verified_on"])}' if report.get("verified_on") else ""
+    verified = f' &middot; verified {esc(report["verified_on"])}' if report.get("verified_on") else ""
     return (
-        '<details class="rules"><summary>Tiebreaker procedure</summary>'
-        f'<p class="conf-badge {esc(confidence)}">{esc(CONFIDENCE_LABEL.get(confidence, ""))}{verified}</p>'
-        f'<p>{esc(report.get("rules_notes", ""))}</p>'
+        '<details class="panel rules"><summary>Tiebreaker procedure</summary>'
+        f'<p class="conf-badge {esc(confidence)}">'
+        f'{esc(CONFIDENCE_LABEL.get(confidence, ""))}{verified}</p>'
+        f'<p class="rules-note">{esc(report.get("rules_notes", ""))}</p>'
         f'<p class="sources">{sources}</p></details>'
     )
 
 
-def _conference_section(report: dict[str, Any]) -> str:
+def _champ_line(report: dict[str, Any]) -> str:
+    champ = report.get("championship") or {}
+    teams = champ.get("teams") or []
+    if not teams:
+        return ""
+    if champ.get("format") == "division champions":
+        body = " &nbsp;&middot;&nbsp; ".join(
+            f'<span class="dv">{esc(t["division"])}</span> <b>{esc(t["team"])}</b>'
+            + (" <i>contested</i>" if t.get("contested") else "")
+            for t in teams
+        )
+    else:
+        body = " <span class='vs'>vs</span> ".join(f'<b>{esc(t["team"])}</b>' for t in teams)
+        if champ.get("contested"):
+            body += " <i>berths contested</i>"
+    return f'<p class="champ"><span class="champ-tag">Title game</span>{body}</p>'
+
+
+def _league(report: dict[str, Any], active: bool) -> str:
     blocks = "".join(
-        _standings_table(block, show_title=len(report["blocks"]) > 1)
-        for block in report["blocks"]
+        _table(block, show_title=len(report["blocks"]) > 1) for block in report["blocks"]
     )
-    flag = '<span class="unresolved-flag" title="At least one tie could not be resolved from public data">!</span>' if report.get("unresolved") else ""
-    return f"""<section class="conference" id="{esc(report['slug'])}">
-  <header class="conf-header">
-    <h2>{esc(report['name'])}{flag}</h2>
-    {_championship_line(report)}
+    tier = esc((report.get("tier_label") or "").upper())
+    meta = (
+        (f'<b>{tier}</b> &middot; ' if tier else "")
+        + f'{report.get("team_count", 0)} teams &middot; '
+        + esc(report.get("format_label", ""))
+    )
+    return f"""<section class="league{' is-active' if active else ''}" id="{esc(report['slug'])}"
+         data-slug="{esc(report['slug'])}" style="--accent:{esc(report.get('accent', '#e5b93c'))}">
+  <header class="league-head">
+    <div>
+      <h2>{esc(report['name'])}</h2>
+      <p class="league-meta">{meta}</p>
+    </div>
+    {_champ_line(report)}
   </header>
   {blocks}
-  {_notes_block(report)}
-  {_rules_footer(report)}
+  {_notes(report)}
+  {_rules(report)}
 </section>"""
 
 
-def _nav(active: str, conferences: list[dict[str, Any]]) -> str:
-    links = "".join(
-        f'<a href="#{esc(c["slug"])}">{esc(c["short_name"] or c["name"])}</a>'
-        for c in conferences
-    )
-    pages = "".join(
-        f'<a class="{"active" if page == active else ""}" href="{href}">{label}</a>'
-        for page, href, label in (
+# --------------------------------------------------------------------------
+# page shell
+# --------------------------------------------------------------------------
+def _pills(report: dict[str, Any], active: str) -> str:
+    rows = []
+    for tier, label in TIER_ROWS:
+        members = [c for c in report["conferences"] if c.get("tier") == tier]
+        if not members:
+            continue
+        pills = "".join(
+            f'<button class="pill{" on" if c["slug"] == active else ""}" type="button"'
+            f' data-slug="{esc(c["slug"])}" style="--accent:{esc(c.get("accent", "#e5b93c"))}">'
+            f'<i class="dot"></i>{esc(c["short_name"] or c["name"])}</button>'
+            for c in members
+        )
+        rows.append(
+            f'<div class="tier-row"><span class="tier-label">{label}</span>'
+            f'<div class="pills">{pills}</div></div>'
+        )
+    return f'<nav class="leagues">{"".join(rows)}</nav>'
+
+
+def _masthead(report: dict[str, Any], page: str, lede: str) -> str:
+    generated = report.get("generated_at", "")
+    nav = "".join(
+        f'<a class="{"on" if key == page else ""}" href="{href}">{label}</a>'
+        for key, href, label in (
             ("standings", "index.html", "Standings"),
             ("scores", "scores.html", "Scores"),
             ("tiebreakers", "tiebreakers.html", "Tiebreakers"),
         )
     )
-    return f"""<nav class="pages">{pages}</nav>
-<nav class="jump">{links}</nav>"""
+    return f"""<header class="masthead">
+  <p class="eyebrow">The Press Box &middot; College Football</p>
+  <h1><span class="yr">{esc(report['season'])} FBS</span><span class="ttl">Conference Standings</span></h1>
+  <p class="lede">{lede}</p>
+  <p class="stat">
+    <b>{report.get('league_count', 0)}</b> <span>FBS leagues</span>
+    <em>&middot;</em> <b>{esc(report['season'])}</b> <span>{esc(report.get('season_label', ''))}</span>
+    <em>&middot;</em> <b>{report.get('conference_games_played', 0)}</b> <span>conference games played</span>
+  </p>
+  <p class="stamp">
+    <time datetime="{esc(generated)}" data-utc="{esc(generated)}">updated {esc(generated)}</time>
+    &middot; live from ESPN
+  </p>
+  <nav class="pages">{nav}</nav>
+</header>"""
 
 
-def _page(title: str, report: dict[str, Any], active: str, body: str) -> str:
-    generated = report.get("generated_at", "")
+def _page(title: str, report: dict[str, Any], page: str, lede: str, body: str) -> str:
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
-<meta name="description" content="College football conference standings with every published tiebreaker applied, updated from ESPN.">
+<meta name="description" content="College football conference standings with every published tiebreaker applied, rebuilt from ESPN.">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏈</text></svg>">
 </head>
 <body>
-<header class="site">
-  <div class="wrap">
-    <h1><a href="index.html">CFB Standings</a></h1>
-    <p class="sub">{esc(report['season'])} season · Week {esc(report['week'])} ·
-      <time datetime="{esc(generated)}" class="updated" data-utc="{esc(generated)}">updated {esc(generated)}</time></p>
-    {_nav(active, report['conferences'])}
-  </div>
-</header>
-<main class="wrap">
+<div class="page">
+{_masthead(report, page, lede)}
 {body}
-</main>
-<footer class="site">
-  <div class="wrap">
-    <p>Scores and team data from ESPN's public endpoints. Standings and tiebreakers computed here;
-       ties the published procedure cannot settle from public data are flagged rather than guessed.</p>
-    <p><a href="data.json">data.json</a> · <a href="https://github.com/jlflux/cfbstandings">source</a></p>
-  </div>
+<footer class="foot">
+  <p>Scores and team data from ESPN's public endpoints. Standings and tiebreakers are
+     computed here; a tie the published procedure cannot settle from public data is
+     flagged rather than guessed.</p>
+  <p><a href="data.json">data.json</a> &middot;
+     <a href="https://github.com/jlflux/cfbstandings">source</a></p>
 </footer>
+</div>
 <script src="app.js"></script>
 </body>
 </html>
 """
 
 
+# --------------------------------------------------------------------------
+# pages
+# --------------------------------------------------------------------------
 def render_standings(report: dict[str, Any]) -> str:
-    sections = "".join(_conference_section(c) for c in report["conferences"])
-    legend = """<p class="legend">
-      <span class="berth">◆</span> projected championship-game berth ·
-      <span class="berth contested">◇</span> berth still contested ·
-      <span class="tied-flag">T</span> tie the published procedure could not resolve
-    </p>"""
+    conferences = report["conferences"]
+    active = conferences[0]["slug"] if conferences else ""
+    leagues = "".join(_league(c, c["slug"] == active) for c in conferences)
+    body = _pills(report, active) + f'<div class="leagues-body">{leagues}</div>'
     return _page(
-        f"{report['season']} College Football Standings",
+        f"{report['season']} FBS Conference Standings",
         report,
         "standings",
-        legend + sections,
+        "Where every league actually stands &mdash; read the race at a glance, "
+        "and see exactly how each tie breaks.",
+        body,
     )
 
 
 def render_scores(report: dict[str, Any]) -> str:
     chunks = []
     for week in report.get("scoreboard", []):
-        label = "Bowls / Championships" if week["season_type"] == 3 else f"Week {week['week']}"
-        games = []
+        label = "Bowls &amp; championships" if week["season_type"] == 3 else f"Week {week['week']}"
+        cards = []
         for game in week["games"]:
-            state_css = {"in": "live", "post": "final", "pre": "upcoming"}.get(game["state"], "")
-            status = game["status"] or ""
-            conf = f'<span class="conf-tag">{esc(game["conference"])}</span>' if game["conference"] else ""
-            rows = []
+            state = {"in": "live", "post": "final", "pre": "soon"}.get(game["state"], "")
+            sides = []
             for side in ("away", "home"):
                 team = game[side]
-                winner = (
+                other = game["home" if side == "away" else "away"]
+                won = (
                     game["completed"]
                     and team["score"] is not None
-                    and game["home"]["score"] is not None
-                    and game["away"]["score"] is not None
-                    and team["score"] > game["home" if side == "away" else "away"]["score"]
+                    and other["score"] is not None
+                    and team["score"] > other["score"]
                 )
-                rank = f'<span class="rank">{team["rank"]}</span>' if team.get("rank") else ""
-                logo = f'<img class="logo" src="{esc(team["logo"])}" alt="" loading="lazy" width="18" height="18">' if team["logo"] else ""
+                rank = f'<span class="ap">{team["rank"]}</span>' if team.get("rank") else ""
+                logo = (
+                    f'<img class="logo" src="{esc(team["logo"])}" alt="" loading="lazy" width="18" height="18">'
+                    if team["logo"] else '<span class="logo"></span>'
+                )
                 score = "" if team["score"] is None else esc(team["score"])
-                rows.append(
-                    f'<div class="side {"winner" if winner else ""}">{logo}{rank}'
+                sides.append(
+                    f'<div class="side{" won" if won else ""}">{logo}{rank}'
                     f'<span class="nm">{esc(team["name"])}</span>'
                     f'<span class="sc">{score}</span></div>'
                 )
-            games.append(
-                f'<article class="game {state_css}">{"".join(rows)}'
-                f'<div class="meta"><span class="status">{esc(status)}</span>{conf}</div></article>'
+            tag = f'<span class="cf">{esc(game["conference"])}</span>' if game["conference"] else ""
+            cards.append(
+                f'<article class="game {state}">{"".join(sides)}'
+                f'<div class="meta"><span class="status">{esc(game["status"])}</span>{tag}</div></article>'
             )
-        chunks.append(f'<section class="scores"><h2>{esc(label)}</h2><div class="grid">{"".join(games)}</div></section>')
-    return _page(f"{report['season']} College Football Scores", report, "scores", "".join(chunks))
+        chunks.append(
+            f'<section class="scores"><h2>{label}</h2><div class="grid">{"".join(cards)}</div></section>'
+        )
+    return _page(
+        f"{report['season']} College Football Scores",
+        report,
+        "scores",
+        "Every FBS result, refreshed through Saturday night.",
+        "".join(chunks),
+    )
 
 
 def render_tiebreakers(report: dict[str, Any]) -> str:
@@ -313,29 +394,35 @@ def render_tiebreakers(report: dict[str, Any]) -> str:
             for u in conf.get("sources") or []
         )
         sections.append(
-            f'<section class="conference" id="rules-{esc(conf["slug"])}">'
-            f'<h2>{esc(conf["name"])}</h2>'
+            f'<section class="league is-active rulecard" style="--accent:{esc(conf.get("accent", "#e5b93c"))}">'
+            f'<header class="league-head"><div><h2>{esc(conf["name"])}</h2>'
+            f'<p class="league-meta">{esc((conf.get("tier_label") or "").upper())} &middot; '
+            f'{esc(conf.get("format_label", ""))}</p></div></header>'
             f'<p class="conf-badge {esc(conf["confidence"])}">'
             f'{esc(CONFIDENCE_LABEL.get(conf["confidence"], ""))}'
-            f'{" · verified " + esc(conf["verified_on"]) if conf.get("verified_on") else ""}</p>'
-            f'<p>{esc(conf.get("rules_notes", ""))}</p>'
+            f'{" &middot; verified " + esc(conf["verified_on"]) if conf.get("verified_on") else ""}</p>'
+            f'<p class="rules-note">{esc(conf.get("rules_notes", ""))}</p>'
             f'<ul class="src">{sources}</ul></section>'
         )
-    intro = """<section class="intro">
-      <h2>How ties are broken here</h2>
-      <p>Teams are separated first by conference winning percentage. Only teams on the same
-      percentage are tied, and a tie is resolved with the conference's own published procedure:
-      the two-team list when exactly two teams are involved, the multi-team list otherwise.</p>
-      <p>When a step splits a tied group, each resulting subgroup restarts the procedure from
-      step one — dropping to the two-team list if only two teams remain. That is the
-      "revert to the beginning" language every conference uses.</p>
-      <p>A step that simply does not apply (no common opponents yet, poll not published) is
-      skipped. A step that <em>cannot</em> be computed from public data — a proprietary analytics
-      rating, or a commissioner's draw — stops the procedure, and the tie is reported as
-      unresolved rather than being decided by a step the conference would never reach.</p>
+    intro = """<section class="league is-active rulecard intro">
+      <header class="league-head"><div><h2>How ties are broken here</h2></div></header>
+      <p class="rules-note">Teams are separated first by conference winning percentage. Only teams
+      on the same percentage are tied, and a tie is resolved with the conference's own published
+      procedure &mdash; the two-team list when exactly two teams are involved, the multi-team list
+      otherwise.</p>
+      <p class="rules-note">When a step splits a tied group, each subgroup restarts the procedure
+      from step one, dropping to the two-team list if only two teams remain. That is the
+      &ldquo;revert to the beginning&rdquo; language every conference uses.</p>
+      <p class="rules-note">A step that does not apply yet is skipped. A step that
+      <em>cannot</em> be computed from public data &mdash; a proprietary analytics rating, or a
+      commissioner's draw &mdash; stops the procedure, and the tie is reported as unresolved
+      rather than decided by a step the conference would never reach.</p>
     </section>"""
     return _page(
-        f"{report['season']} Conference Tiebreaker Procedures", report, "tiebreakers",
+        f"{report['season']} Conference Tiebreaker Procedures",
+        report,
+        "tiebreakers",
+        "The exact procedure encoded for each league, with sources.",
         intro + "".join(sections),
     )
 
@@ -344,12 +431,11 @@ def write_site(report: dict[str, Any], out_dir: str) -> list[str]:
     os.makedirs(out_dir, exist_ok=True)
     written = []
 
-    pages = {
+    for name, content in {
         "index.html": render_standings(report),
         "scores.html": render_scores(report),
         "tiebreakers.html": render_tiebreakers(report),
-    }
-    for name, content in pages.items():
+    }.items():
         path = os.path.join(out_dir, name)
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(content)

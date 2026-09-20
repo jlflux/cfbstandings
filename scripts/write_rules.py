@@ -51,6 +51,21 @@ CFP = step(
     poll_label="the College Football Playoff committee rankings (first published in early November)",
 )
 
+# Tier and accent drive the P4/G5 pill navigation and each league's colour.
+TIERS = {
+    "sec": ("p4", "#e5b93c"),
+    "big-ten": ("p4", "#5b8dd6"),
+    "big-12": ("p4", "#d9634a"),
+    "acc": ("p4", "#3fae91"),
+    "american": ("g5", "#a978d8"),
+    "conference-usa": ("g5", "#5fc06a"),
+    "mac": ("g5", "#c08a4e"),
+    "mountain-west": ("g5", "#d4a017"),
+    "sun-belt": ("g5", "#5fb2d9"),
+    "pac-12": ("g5", "#8e9c92"),
+    "independents": ("independent", "#6f7b88"),
+}
+
 RULES = {
     "sec": {
         "conference": "Southeastern Conference",
@@ -259,10 +274,13 @@ RULES = {
 def main():
     os.makedirs(OUT, exist_ok=True)
     for slug, rules in RULES.items():
+        tier, accent = TIERS.get(slug, ("other", "#e5b93c"))
         payload = {
             "slug": slug,
             "season": 2026,
             "verified_on": VERIFIED,
+            "tier": tier,
+            "accent": accent,
             "championship": {
                 "participants": 2,
                 "selection": (

@@ -2,6 +2,8 @@
   "slug": "mountain-west",
   "season": 2026,
   "verified_on": "2026-09-20",
+  "tier": "g5",
+  "accent": "#d4a017",
   "championship": {
     "participants": 2,
     "selection": "top two by conference winning percentage"

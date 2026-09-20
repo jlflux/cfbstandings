@@ -2,6 +2,8 @@
   "slug": "big-ten",
   "season": 2026,
   "verified_on": "2026-09-20",
+  "tier": "p4",
+  "accent": "#5b8dd6",
   "championship": {
     "participants": 2,
     "selection": "top two by conference winning percentage"

@@ -2,6 +2,8 @@
   "slug": "independents",
   "season": 2026,
   "verified_on": "2026-09-20",
+  "tier": "independent",
+  "accent": "#6f7b88",
   "championship": {
     "participants": 2,
     "selection": "top two by conference winning percentage"

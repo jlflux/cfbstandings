@@ -463,7 +463,18 @@ def order_group(ctx: TieContext, ids: list[str], rules: dict) -> list[list[str]]
     A level with more than one team is a tie the published procedure could not
     resolve from public data.
     """
-    ids = sorted(ids, key=lambda t: ctx.name(t))
+    # Teams are tied on winning percentage, which is the criterion every
+    # conference uses - but a 2-0 and a 1-0 team share a percentage without
+    # having played the same slate, so the better record reads first inside a
+    # group the procedure cannot separate.
+    ids = sorted(
+        ids,
+        key=lambda t: (
+            -ctx.standing(t).conference.wins,
+            ctx.standing(t).conference.losses,
+            ctx.name(t),
+        ),
+    )
     if len(ids) <= 1:
         return [ids]
 

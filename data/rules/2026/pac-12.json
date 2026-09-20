@@ -2,6 +2,8 @@
   "slug": "pac-12",
   "season": 2026,
   "verified_on": "2026-09-20",
+  "tier": "g5",
+  "accent": "#8e9c92",
   "championship": {
     "participants": 2,
     "selection": "top two by conference winning percentage"

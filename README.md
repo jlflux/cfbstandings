@@ -124,13 +124,33 @@ shapes, which is what the tests and the CI build run against.
 
 ## Publishing
 
-The site deploys to GitHub Pages from the workflow artifact — nothing is
-committed except the daily data snapshot in `data/latest.json`, which doubles
-as an offline fixture (`python -m cfb --season-file data/latest.json build`).
+### GitHub Pages (recommended)
+
+The site deploys from the workflow artifact — nothing is committed except the
+daily data snapshot in `data/latest.json`, which doubles as an offline fixture
+(`python -m cfb --season-file data/latest.json build`).
 
 One-time setup: **Settings → Pages → Source → GitHub Actions**. Until that is
 switched on the workflow still builds and checks the site every run, it just
 has nowhere to deploy to, and says so in the run summary rather than failing.
+
+Pages is the right host for a 10-minute cadence: there is no deployment quota
+to run into.
+
+### Vercel
+
+There are no HTML files in the repository — `site/` is generated — so a Vercel
+project with no build step finds nothing to serve. `vercel.json` fixes that by
+running `build.sh`, which fetches from ESPN and renders into `site/` at deploy
+time. No dependencies to install; Vercel's build image already has Python.
+
+Vercel only rebuilds on a push or a deploy hook, so a deploy hook is what keeps
+a Vercel copy current. Create one under **Settings → Git → Deploy Hooks**, save
+the URL as the `VERCEL_DEPLOY_HOOK` repository secret, and the workflow pokes it
+**once a day**. That deliberately does not fire every ten minutes: Vercel's
+Hobby plan caps daily deployments, and a Saturday at full cadence would be
+about a hundred of them. Set the repository variable `VERCEL_HOOK_EVERY_RUN` to
+`true` to opt into the full cadence anyway.
 
 The workflows act on whatever branch the repository calls default — GitHub
 only runs `schedule` triggers there — so nothing is hardcoded to `main`. The
