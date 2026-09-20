@@ -15,7 +15,7 @@ import os
 import sys
 import time
 
-from .espn import EspnClient
+from .espn import SCOREBOARD_CAP, EspnClient
 from .http import Http
 from .model import Season
 from .render import write_site
@@ -99,8 +99,23 @@ def cmd_probe(args) -> int:
     print(f"# teams feed: {len(teams)}; unmatched group members: "
           f"{sum(1 for t in team_conf if t not in teams)}")
 
-    games = client.fetch_week(year, season_type, week)
-    print(f"# week {week}: {len(games)} games")
+    calendar = client.fetch_calendar(year)
+    print(f"# calendar: regular weeks {sorted(calendar.get(2, {}))}, "
+          f"postseason weeks {sorted(calendar.get(3, {}))}")
+
+    worst = 0
+    total = {}
+    for conf in sorted(conferences.values(), key=lambda c: c.name):
+        week_games = client.fetch_group_week(
+            year, season_type, week, conf.id, calendar.get(season_type, {}).get(week)
+        )
+        worst = max(worst, len(week_games))
+        total.update({g.id: g for g in week_games})
+        print(f"  week {week} {conf.short_name or conf.name:<14} {len(week_games):>3} games")
+    print(f"# week {week}: {len(total)} distinct games; "
+          f"largest single response {worst} (cap {SCOREBOARD_CAP})")
+
+    games = sorted(total.values(), key=lambda g: g.date)
     for game in games[:5]:
         home = teams.get(game.home_id)
         away = teams.get(game.away_id)

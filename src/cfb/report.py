@@ -101,10 +101,20 @@ def _last_and_next(season: Season, standing: TeamStanding) -> tuple[dict | None,
     return last, nxt
 
 
+# Display preference: the committee's rankings once they exist, else the AP.
+# ESPN labels these inconsistently across seasons, so each is matched loosely.
+RANK_POLLS = (
+    "cfp",
+    "playoff",
+    "ap top 25",
+    "ap poll",
+)
+
+
 def _rank_of(season: Season, team_id: str) -> int | None:
-    for poll in ("CFP Rankings", "Playoff Committee Rankings", "AP Top 25", "AP Poll"):
+    for poll in RANK_POLLS:
         for name, table in season.rankings.items():
-            if poll.lower() in name.lower() and team_id in table:
+            if poll in name.lower() and team_id in table:
                 return table[team_id]
     return None
 

@@ -30,8 +30,11 @@ FCS_GROUP = "81"
 
 # Regular season weeks to sweep. ESPN returns an empty event list for weeks
 # that do not exist, so an over-estimate is harmless.
-MAX_REGULAR_WEEKS = 17
-MAX_POSTSEASON_WEEKS = 6
+MAX_REGULAR_WEEKS = 15
+
+# The scoreboard silently truncates at 25 events per response and ignores
+# ``limit``; see fetch_group_week for how that is worked around.
+SCOREBOARD_CAP = 25
 
 def _ref_id(ref: str) -> str | None:
     """The trailing numeric path segment of a core-API $ref.
@@ -100,7 +103,9 @@ class EspnClient:
             # children of the conference group.
             for div_ref in _child_refs(group):
                 division = self.http.get_json(_strip_ref(div_ref))
-                div_name = division.get("name") or division.get("shortName") or ""
+                div_name = _division_label(
+                    conf, division.get("name") or division.get("shortName") or ""
+                )
                 div_teams = self._group_team_ids(division)
                 if not div_teams:
                     continue
@@ -147,48 +152,137 @@ class EspnClient:
         return teams
 
     # -- games ------------------------------------------------------------
-    def fetch_week(self, year: int, season_type: int, week: int) -> list[Game]:
-        payload = self.http.get_json(
-            f"{SITE}/scoreboard",
-            {
-                "dates": year,
-                "seasontype": season_type,
-                "week": week,
-                "groups": FBS_GROUP,
-                "limit": 1000,
-            },
-        )
+    #
+    # The scoreboard returns at most SCOREBOARD_CAP events per response and
+    # ignores ``limit``, so a whole Saturday cannot be read in one call. It
+    # does honour ``groups``, and a group filter matches a game when *either*
+    # team belongs to the group - so sweeping conference by conference covers
+    # non-conference games too. One conference in one week is comfortably
+    # under the cap; if a response ever does hit it, that conference-week is
+    # re-read a day at a time.
+
+    def fetch_scoreboard(
+        self,
+        year: int,
+        season_type: int,
+        week: int | None = None,
+        group: str = FBS_GROUP,
+        date: str | None = None,
+        no_cache: bool = False,
+    ) -> tuple[list[Game], dict[str, Any]]:
+        params: dict[str, Any] = {"groups": group, "limit": 1000}
+        if date:
+            params["dates"] = date
+        else:
+            params.update({"dates": year, "seasontype": season_type, "week": week})
+        payload = self.http.get_json(f"{SITE}/scoreboard", params, no_cache=no_cache)
         games = []
         for event in payload.get("events", []):
-            game = _parse_event(event, year, season_type, week)
+            game = _parse_event(event, year, season_type, week or 0)
             if game:
                 games.append(game)
-        return games
+        return games, payload
+
+    def fetch_calendar(self, year: int) -> dict[int, dict[int, tuple[str, str]]]:
+        """{season_type: {week: (start_date, end_date)}} as YYYYMMDD strings."""
+        _, payload = self.fetch_scoreboard(year, 2, 1)
+        calendar: dict[int, dict[int, tuple[str, str]]] = {}
+        for section in (payload.get("leagues") or [{}])[0].get("calendar", []):
+            if not isinstance(section, dict):
+                continue
+            try:
+                season_type = int(section.get("value"))
+            except (TypeError, ValueError):
+                continue
+            weeks: dict[int, tuple[str, str]] = {}
+            for entry in section.get("entries", []):
+                try:
+                    number = int(entry.get("value"))
+                except (TypeError, ValueError):
+                    continue
+                weeks[number] = (
+                    _compact_date(entry.get("startDate", "")),
+                    _compact_date(entry.get("endDate", "")),
+                )
+            if weeks:
+                calendar[season_type] = weeks
+        return calendar
+
+    def fetch_group_week(
+        self,
+        year: int,
+        season_type: int,
+        week: int,
+        group: str,
+        span: tuple[str, str] | None = None,
+        no_cache: bool = False,
+    ) -> list[Game]:
+        games, _ = self.fetch_scoreboard(
+            year, season_type, week, group=group, no_cache=no_cache
+        )
+        if len(games) < SCOREBOARD_CAP or not span:
+            return games
+
+        # The response hit the cap, so it may be truncated: re-read the week
+        # one day at a time and merge.
+        log.info(
+            "group %s week %s hit the %s-event cap; splitting by date",
+            group, week, SCOREBOARD_CAP,
+        )
+        merged = {game.id: game for game in games}
+        for day in _days_between(*span):
+            day_games, _ = self.fetch_scoreboard(
+                year, season_type, week, group=group, date=day, no_cache=no_cache
+            )
+            for game in day_games:
+                game.week = week
+                merged[game.id] = game
+        return list(merged.values())
 
     def fetch_season_games(
         self,
         year: int,
-        through_type: int = 3,
-        regular_weeks: int = MAX_REGULAR_WEEKS,
+        conference_ids: list[str],
+        current_type: int = 2,
+        current_week: int = 1,
+        include_postseason: bool = True,
     ) -> list[Game]:
+        calendar = self.fetch_calendar(year)
+        regular = calendar.get(2, {})
+        last_week = max(regular) if regular else MAX_REGULAR_WEEKS
+
+        # Past weeks are settled and future weeks hold nothing but kickoff
+        # times, so read through the week after next and stop.
+        through = last_week if current_type > 2 else min(current_week + 2, last_week)
+
         games: dict[str, Game] = {}
-        for week in range(1, regular_weeks + 1):
-            try:
-                week_games = self.fetch_week(year, 2, week)
-            except FetchError as exc:
-                log.warning("regular week %s failed: %s", week, exc)
-                continue
-            for game in week_games:
-                games[game.id] = game
-        if through_type >= 3:
-            for week in range(1, MAX_POSTSEASON_WEEKS + 1):
+        for week in range(1, through + 1):
+            live = current_type == 2 and week == current_week
+            for group in conference_ids:
                 try:
-                    week_games = self.fetch_week(year, 3, week)
+                    week_games = self.fetch_group_week(
+                        year, 2, week, group, regular.get(week), no_cache=live
+                    )
                 except FetchError as exc:
-                    log.warning("postseason week %s failed: %s", week, exc)
+                    log.warning("week %s group %s failed: %s", week, group, exc)
                     continue
                 for game in week_games:
-                    games.setdefault(game.id, game)
+                    games[game.id] = game
+
+        if include_postseason and (current_type > 2 or current_week >= last_week - 2):
+            for week in sorted(calendar.get(3, {})):
+                for group in conference_ids:
+                    try:
+                        week_games = self.fetch_group_week(
+                            year, 3, week, group, calendar[3].get(week),
+                            no_cache=current_type > 2,
+                        )
+                    except FetchError as exc:
+                        log.warning("postseason week %s group %s failed: %s", week, group, exc)
+                        continue
+                    for game in week_games:
+                        games[game.id] = game
+
         return sorted(games.values(), key=lambda g: (g.date, g.id))
 
     # -- rankings ----------------------------------------------------------
@@ -235,7 +329,13 @@ class EspnClient:
             team.conference_name = conferences[conf_id].name
             team.division = team_div.get(team_id)
 
-        games = self.fetch_season_games(year, through_type=3 if include_postseason else 2)
+        games = self.fetch_season_games(
+            year,
+            conference_ids=list(conferences),
+            current_type=season_type,
+            current_week=week,
+            include_postseason=include_postseason,
+        )
         rankings = self.fetch_rankings(year)
 
         return Season(
@@ -253,6 +353,33 @@ class EspnClient:
 # -- parsing helpers -------------------------------------------------------
 def _slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (value or "").lower()).strip("-")
+
+
+def _compact_date(iso: str) -> str:
+    """"2026-09-14T07:00Z" -> "20260914"."""
+    return iso[:10].replace("-", "") if iso else ""
+
+
+def _days_between(start: str, end: str) -> list[str]:
+    try:
+        first = dt.datetime.strptime(start, "%Y%m%d").date()
+        last = dt.datetime.strptime(end, "%Y%m%d").date()
+    except (ValueError, TypeError):
+        return []
+    if last < first or (last - first).days > 30:
+        return []
+    return [
+        (first + dt.timedelta(days=offset)).strftime("%Y%m%d")
+        for offset in range((last - first).days + 1)
+    ]
+
+
+def _division_label(conf: Conference, raw: str) -> str:
+    """ESPN names divisions "Sun Belt - East"; the table header only needs "East"."""
+    for prefix in (conf.name, conf.short_name):
+        if prefix and raw.startswith(f"{prefix} - "):
+            return raw[len(prefix) + 3:]
+    return raw
 
 
 def _group_logo(group: dict[str, Any]) -> str:
@@ -328,7 +455,7 @@ def _parse_event(event: dict[str, Any], year: int, season_type: int, week: int) 
         date=_normalise_date(comp.get("date") or event.get("date") or ""),
         season=year,
         season_type=season_type,
-        week=int((event.get("week") or {}).get("number") or week),
+        week=_event_week(event, week),
         home_id=str((home.get("team") or {}).get("id") or ""),
         away_id=str((away.get("team") or {}).get("id") or ""),
         home_score=_score(home, completed, state),
@@ -343,6 +470,18 @@ def _parse_event(event: dict[str, Any], year: int, season_type: int, week: int) 
         espn_conference_game=comp.get("conferenceCompetition"),
         notes=notes,
     )
+
+
+def _event_week(event: dict[str, Any], fallback: int) -> int:
+    """ESPN reports the week as {"number": 3} on the scoreboard and as a bare
+    integer on some other feeds."""
+    raw = event.get("week")
+    if isinstance(raw, dict):
+        raw = raw.get("number")
+    try:
+        return int(raw) or fallback
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _score(competitor: dict[str, Any], completed: bool, state: str) -> int | None:

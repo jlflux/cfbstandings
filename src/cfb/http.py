@@ -77,10 +77,12 @@ class Http:
             log.debug("could not cache %s", url)
 
     # -- fetch ---------------------------------------------------------
-    def get_json(self, url: str, params: dict | None = None):
+    def get_json(self, url: str, params: dict | None = None, no_cache: bool = False):
+        """Fetch JSON. ``no_cache`` forces a live read - used for the week in
+        play, whose scores change while the cache would still look fresh."""
         if params:
             url = f"{url}?{urllib.parse.urlencode(params)}"
-        cached = self._cache_read(url)
+        cached = None if no_cache else self._cache_read(url)
         if cached is not None:
             return cached
 
