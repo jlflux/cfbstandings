@@ -1,0 +1,115 @@
+name: Update standings
+
+# Cadence the site is built on:
+#   * Saturdays, 11:00 AM through 3:00 AM Sunday US Central - every 10 minutes
+#   * every other day - once, in the morning
+#
+# Cron in GitHub Actions is UTC only, so the Saturday crons cover the widest
+# UTC span the Central window can occupy under either CST or CDT and a guard
+# step trims it back to the exact America/Chicago window.
+on:
+  schedule:
+    - cron: '*/10 16-23 * * 6'   # Sat 16:00-23:59 UTC  (Sat 10:00/11:00 CT onward)
+    - cron: '*/10 0-9 * * 0'     # Sun 00:00-09:59 UTC  (through Sun 03:00/04:00 CT)
+    - cron: '0 13 * * *'         # daily 13:00 UTC      (07:00/08:00 CT)
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season year (blank = whatever ESPN says is current)'
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'web/**'
+      - 'data/rules/**'
+      - '.github/workflows/update.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      ran: ${{ steps.window.outputs.run }}
+    steps:
+      - name: Decide whether this run is inside the Central-time window
+        id: window
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Not a scheduled run - building."
+            exit 0
+          fi
+          if [ "${{ github.event.schedule }}" = "0 13 * * *" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "daily=true" >> "$GITHUB_OUTPUT"
+            echo "Daily run - building."
+            exit 0
+          fi
+          dow=$(TZ=America/Chicago date +%u)          # 1=Mon .. 7=Sun
+          hm=$((10#$(TZ=America/Chicago date +%H%M)))
+          local_now=$(TZ=America/Chicago date '+%a %H:%M %Z')
+          run=false
+          if [ "$dow" -eq 6 ] && [ "$hm" -ge 1100 ]; then run=true; fi
+          if [ "$dow" -eq 7 ] && [ "$hm" -lt 300 ]; then run=true; fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "Central time is $local_now - in window: $run"
+
+      - uses: actions/checkout@v4
+        if: steps.window.outputs.run == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.window.outputs.run == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Build the site from ESPN
+        if: steps.window.outputs.run == 'true'
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m cfb ${{ github.event.inputs.season && format('--season {0}', github.event.inputs.season) || '' }} \
+            --pause 0.15 \
+            build --out site --save-season data/latest.json
+
+      - name: Commit the daily data snapshot
+        if: steps.window.outputs.run == 'true' && steps.window.outputs.daily == 'true' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/latest.json
+          if git diff --cached --quiet; then
+            echo "No change in the snapshot."
+          else
+            git commit -m "Daily standings snapshot $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+        if: steps.window.outputs.run == 'true'
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.window.outputs.run == 'true'
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.ran == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

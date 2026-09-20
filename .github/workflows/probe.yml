@@ -1,0 +1,48 @@
+name: Probe ESPN
+
+# Run by hand to check that ESPN's responses still parse the way the client
+# expects - useful after a season rolls over or ESPN changes a payload.
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season year (blank = current)'
+        required: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe the endpoints
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m cfb ${{ github.event.inputs.season && format('--season {0}', github.event.inputs.season) || '' }} probe
+      - name: Build once against live data
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m cfb --pause 0.15 build --out site --save-season season.json
+          python - <<'PY'
+          import json
+          d = json.load(open("site/data.json"))
+          print(f"week {d['week']}, {len(d['conferences'])} conferences")
+          for c in d["conferences"]:
+              rows = [r for b in c["blocks"] for r in b["rows"]]
+              lead = ", ".join(f"{r['name']} {r['conf_record']}" for r in rows[:3])
+              print(f"  {c['name']:<34} {len(rows):>2} teams | {lead}")
+              for n in c["notes"][:4]:
+                  mark = "  ok " if n["resolved"] else "  ?? "
+                  print(f"{mark}{', '.join(n['tied'])} @ {n['at_record']}: {n['summary'][:90]}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-output
+          path: |
+            site/data.json
+            season.json
+          retention-days: 7

@@ -1,0 +1,87 @@
+{
+  "slug": "sec",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Southeastern Conference",
+  "espn_group_id": "8",
+  "structure": "single_table",
+  "confidence": "high",
+  "sources": [
+    "https://www.secsports.com/fbtiebreaker",
+    "https://www.secsports.com/news/2024/08/sec-announces-football-tie-breaking-process",
+    "https://www.espn.com/college-football/story/_/id/40944783/sec-reveals-tiebreaking-procedures-conference-title-game"
+  ],
+  "notes": "The two teams with the best conference winning percentage meet in Atlanta. If exactly two teams tie for first, both play in the championship game and the procedure only decides the home team. The capped scoring margin caps points scored at 42 and points allowed at 48 in each conference game; this build compares the per-game average so the step stays fair if teams play a different number of conference games.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "capped_scoring_margin",
+      "label": "Capped relative scoring margin vs all conference opponents (42 scored / 48 allowed)",
+      "params": {
+        "cap_for": 42,
+        "cap_against": 48,
+        "per_game": true
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "capped_scoring_margin",
+      "label": "Capped relative scoring margin vs all conference opponents (42 scored / 48 allowed)",
+      "params": {
+        "cap_for": 42,
+        "cap_against": 48,
+        "per_game": true
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

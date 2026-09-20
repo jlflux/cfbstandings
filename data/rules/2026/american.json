@@ -1,0 +1,91 @@
+{
+  "slug": "american",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "American Conference",
+  "espn_group_id": "151",
+  "structure": "single_table",
+  "confidence": "medium",
+  "sources": [
+    "https://theamerican.org/news/2025/11/23/FOOTBALL_Tiebreaker.aspx",
+    "https://www.espn.com/college-football/story/_/id/42082434/what-fbs-college-football-conference-tiebreaker-rules"
+  ],
+  "notes": "A multi-team tie without a full round robin goes straight to the College Football Playoff rankings, which only exist from early November onward; before then such a tie is reported as unresolved.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "ranking",
+      "label": "Highest College Football Playoff committee ranking",
+      "params": {
+        "polls": [
+          "cfp",
+          "playoff"
+        ]
+      }
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Record among the tied teams (round robin; a team that beat all others advances)",
+      "params": {
+        "mode": "round_robin_or_sweep"
+      }
+    },
+    {
+      "step": "ranking",
+      "label": "Highest College Football Playoff committee ranking",
+      "params": {
+        "polls": [
+          "cfp",
+          "playoff"
+        ]
+      }
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

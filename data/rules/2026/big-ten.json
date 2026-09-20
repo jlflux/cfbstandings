@@ -1,0 +1,82 @@
+{
+  "slug": "big-ten",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Big Ten Conference",
+  "espn_group_id": "5",
+  "structure": "single_table",
+  "confidence": "high",
+  "sources": [
+    "https://bigten.org/fb/article/58967/",
+    "https://bigten.org/fb/article/blt6104802d94ebe1ab/"
+  ],
+  "notes": "Six published steps. Step 5 is the SportSource Analytics Team Rating Score, which is not published publicly, so a tie that survives step 4 is reported here as unresolved rather than guessed at.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics Team Rating Score",
+      "params": {
+        "metric": "SportSource Analytics Team Rating Score"
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics Team Rating Score",
+      "params": {
+        "metric": "SportSource Analytics Team Rating Score"
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

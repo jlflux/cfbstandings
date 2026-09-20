@@ -1,0 +1,91 @@
+{
+  "slug": "conference-usa",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Conference USA",
+  "espn_group_id": "12",
+  "structure": "single_table",
+  "confidence": "low",
+  "sources": [
+    "https://conferenceusa.com/documents/2024/9/19/CUSA_FB_Championship_Game_Tiebreaker_Policy.pdf",
+    "https://www.espn.com/college-football/story/_/id/42082434/what-fbs-college-football-conference-tiebreaker-rules"
+  ],
+  "notes": "CUSA rewrote its procedure for 2024 to line up closely with the American and the Mountain West. The official policy is published only as a PDF; this ordering is modelled on those leagues and should be re-checked against the PDF before it is relied on late in the season.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "ranking",
+      "label": "Highest College Football Playoff committee ranking",
+      "params": {
+        "polls": [
+          "cfp",
+          "playoff"
+        ]
+      }
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Record among the tied teams (round robin; a team that beat all others advances)",
+      "params": {
+        "mode": "round_robin_or_sweep"
+      }
+    },
+    {
+      "step": "ranking",
+      "label": "Highest College Football Playoff committee ranking",
+      "params": {
+        "polls": [
+          "cfp",
+          "playoff"
+        ]
+      }
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

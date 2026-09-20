@@ -1,0 +1,76 @@
+{
+  "slug": "sun-belt",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "division champions"
+  },
+  "conference": "Sun Belt Conference",
+  "espn_group_id": "37",
+  "structure": "divisions",
+  "confidence": "medium",
+  "sources": [
+    "https://sunbeltsports.org/sports/2018/8/30/FB_Tie-Breakers.aspx",
+    "https://sunbeltsports.org/news/2026/3/13/sun-belt-announces-2026-football-schedule.aspx"
+  ],
+  "notes": "The only FBS league still using divisions: the East and West champions meet for the title. Each team plays six divisional games and two crossovers, so the divisional record carries most of the weight.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "division_record",
+      "label": "Win pct within the division"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the next highest-placed team in the division, proceeding down",
+      "params": {
+        "common_only": false
+      }
+    },
+    {
+      "step": "common_nondivision_opponents",
+      "label": "Combined win pct vs all common non-divisional conference opponents"
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "division_record",
+      "label": "Win pct within the division"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the next highest-placed team in the division, proceeding down",
+      "params": {
+        "common_only": false
+      }
+    },
+    {
+      "step": "common_nondivision_opponents",
+      "label": "Combined win pct vs all common non-divisional conference opponents"
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

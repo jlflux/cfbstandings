@@ -1,0 +1,72 @@
+{
+  "slug": "pac-12",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Pac-12 Conference",
+  "espn_group_id": "9",
+  "structure": "single_table",
+  "confidence": "medium",
+  "sources": [
+    "https://pac-12.com/news/2026/2/9/general-the-new-pac-12-announces-its-2026-football-schedule.aspx",
+    "https://pac-12.com/news/2026/9/3/pac-12-announces-commercial-and-operational-updates-ahead-of-its-2026-football-season-kickoff.aspx"
+  ],
+  "notes": "The rebuilt eight-team league plays a true round robin (seven conference games), so head-to-head resolves almost every tie. The championship game is hosted by the higher seed.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

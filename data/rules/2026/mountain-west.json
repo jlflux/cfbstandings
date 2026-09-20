@@ -1,0 +1,88 @@
+{
+  "slug": "mountain-west",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Mountain West Conference",
+  "espn_group_id": "17",
+  "structure": "single_table",
+  "confidence": "medium",
+  "sources": [
+    "https://themw.com/sports/2023/8/17/football-tiebreaker-procedures.aspx",
+    "https://www.espn.com/college-football/story/_/id/42082434/what-fbs-college-football-conference-tiebreaker-rules"
+  ],
+  "notes": "The league leans on the CFP ranking and then an average of designated computer ratings. The computer composite is not reproducible from public feeds, so it halts the procedure here.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "ranking",
+      "label": "Highest College Football Playoff committee ranking",
+      "params": {
+        "polls": [
+          "cfp",
+          "playoff"
+        ]
+      }
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "average of the designated computer rankings",
+      "params": {
+        "metric": "average of the designated computer rankings"
+      }
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Coin toss administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "ranking",
+      "label": "Highest College Football Playoff committee ranking",
+      "params": {
+        "polls": [
+          "cfp",
+          "playoff"
+        ]
+      }
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "average of the designated computer rankings",
+      "params": {
+        "metric": "average of the designated computer rankings"
+      }
+    },
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    },
+    {
+      "step": "draw",
+      "label": "Coin toss administered by the commissioner"
+    }
+  ]
+}

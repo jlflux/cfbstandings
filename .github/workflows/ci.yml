@@ -1,0 +1,31 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run the tiebreaker and report tests
+        working-directory: tests
+        run: python -m unittest discover -p "test_*.py" -v
+
+      - name: Build the site from the offline fixture
+        env:
+          PYTHONPATH: src
+        run: |
+          python scripts/make_fixture.py tests/fixtures/season.json
+          python -m cfb --season-file tests/fixtures/season.json build --out /tmp/site
+          test -s /tmp/site/index.html
+          test -s /tmp/site/data.json
+
+      - name: Check the rule files parse and every step is implemented
+        run: python scripts/check_rules.py

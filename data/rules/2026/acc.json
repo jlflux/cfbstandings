@@ -1,0 +1,55 @@
+{
+  "slug": "acc",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Atlantic Coast Conference",
+  "espn_group_id": "1",
+  "structure": "single_table",
+  "confidence": "medium",
+  "sources": [
+    "https://theacc.com/news/2026/7/15/acc-announces-new-football-championship-tiebreaker-policy.aspx",
+    "https://www.espn.com/college-football/story/_/id/49366844/acc-implements-new-tiebreaker-policy-football-title-game"
+  ],
+  "notes": "New for 2026, after the 2025 five-way tie. Twelve members play nine conference games and five play eight, so the league deliberately dropped the opponent-based steps: head-to-head first, then the SportSource Analytics Team Success Ranking, then a draw. Because the Team Success Ranking is not public, ties that head-to-head cannot settle are reported here as unresolved.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics Team Success Ranking",
+      "params": {
+        "metric": "SportSource Analytics Team Success Ranking"
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Record among the tied teams (round robin; a team that beat all others advances)",
+      "params": {
+        "mode": "round_robin_or_sweep"
+      }
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics Team Success Ranking",
+      "params": {
+        "metric": "SportSource Analytics Team Success Ranking"
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

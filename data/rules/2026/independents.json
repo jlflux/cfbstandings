@@ -1,0 +1,27 @@
+{
+  "slug": "independents",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "FBS Independents",
+  "espn_group_id": "18",
+  "structure": "no_championship",
+  "confidence": "high",
+  "sources": [],
+  "notes": "Independents play no conference schedule; they are listed by overall record.",
+  "two_team": [
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "overall_win_pct",
+      "label": "Overall winning percentage"
+    }
+  ]
+}

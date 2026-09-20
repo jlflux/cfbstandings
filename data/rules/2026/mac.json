@@ -1,0 +1,82 @@
+{
+  "slug": "mac",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Mid-American Conference",
+  "espn_group_id": "15",
+  "structure": "single_table",
+  "confidence": "high",
+  "sources": [
+    "https://getsomemaction.com/news/2025/11/24/2025-mac-football-championship-game-tiebreakers.aspx",
+    "https://getsomemaction.com/sports/2025/11/12/FB_1112255434.aspx"
+  ],
+  "notes": "The MAC puts the SportSource Analytics Team Rating Score third, ahead of the opponent-based steps. That is faithfully encoded here, which means MAC ties surviving the common-opponents step are reported as unresolved.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics Team Rating Score",
+      "params": {
+        "metric": "SportSource Analytics Team Rating Score"
+      }
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics Team Rating Score",
+      "params": {
+        "metric": "SportSource Analytics Team Rating Score"
+      }
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "draw",
+      "label": "Draw administered by the commissioner"
+    }
+  ]
+}

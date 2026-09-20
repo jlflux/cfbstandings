@@ -1,0 +1,93 @@
+{
+  "slug": "big-12",
+  "season": 2026,
+  "verified_on": "2026-09-20",
+  "championship": {
+    "participants": 2,
+    "selection": "top two by conference winning percentage"
+  },
+  "conference": "Big 12 Conference",
+  "espn_group_id": "4",
+  "structure": "single_table",
+  "confidence": "high",
+  "sources": [
+    "https://www.espn.com/college-football/story/_/id/41149467/big-12-reveals-tiebreaking-policies-conference-title-game",
+    "https://www.espn.com/college-football/story/_/id/42082434/what-fbs-college-football-conference-tiebreaker-rules"
+  ],
+  "notes": "Schedules are unbalanced, so the multi-team head-to-head step only separates teams when the tied group played a full round robin, or when one team beat every other tied team.",
+  "two_team": [
+    {
+      "step": "head_to_head",
+      "label": "Head-to-head competition"
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "total_wins",
+      "label": "Total wins"
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics rating",
+      "params": {
+        "metric": "SportSource Analytics rating"
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Coin toss administered by the commissioner"
+    }
+  ],
+  "multi_team": [
+    {
+      "step": "head_to_head",
+      "label": "Record among the tied teams (round robin; a team that beat all others advances)",
+      "params": {
+        "mode": "round_robin_or_sweep"
+      }
+    },
+    {
+      "step": "common_opponents",
+      "label": "Win pct vs all common conference opponents"
+    },
+    {
+      "step": "order_of_finish",
+      "label": "Win pct vs the highest-placed common conference opponent, proceeding through the standings",
+      "params": {
+        "common_only": true
+      }
+    },
+    {
+      "step": "conference_opponents_win_pct",
+      "label": "Combined conference win pct of all conference opponents"
+    },
+    {
+      "step": "total_wins",
+      "label": "Total wins"
+    },
+    {
+      "step": "unavailable_metric",
+      "label": "SportSource Analytics rating",
+      "params": {
+        "metric": "SportSource Analytics rating"
+      }
+    },
+    {
+      "step": "draw",
+      "label": "Coin toss administered by the commissioner"
+    }
+  ]
+}
