@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ran: ${{ steps.window.outputs.run }}
+      pages: ${{ steps.pages.outcome }}
     steps:
       - name: Decide whether this run is inside the Central-time window
         id: window
@@ -107,11 +108,23 @@ jobs:
             git push
           fi
 
-      - uses: actions/configure-pages@v5
+      # Left to the repository owner to switch on, since it publishes a
+      # public URL. Until then the build still runs and is still checked,
+      # it just has nowhere to deploy to.
+      - id: pages
+        uses: actions/configure-pages@v5
         if: steps.window.outputs.run == 'true'
+        continue-on-error: true
+
+      - name: Explain that Pages is not enabled
+        if: steps.window.outputs.run == 'true' && steps.pages.outcome == 'failure'
+        run: |
+          echo "::notice title=Site built, not published::The site built fine, but this"\
+               "repository does not have GitHub Pages enabled. Turn it on under"\
+               "Settings -> Pages -> Source -> GitHub Actions and the next run will deploy."
 
       - uses: actions/upload-pages-artifact@v3
-        if: steps.window.outputs.run == 'true'
+        if: steps.window.outputs.run == 'true' && steps.pages.outcome == 'success'
         with:
           path: site
 

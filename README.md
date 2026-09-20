@@ -128,8 +128,9 @@ The site deploys to GitHub Pages from the workflow artifact — nothing is
 committed except the daily data snapshot in `data/latest.json`, which doubles
 as an offline fixture (`python -m cfb --season-file data/latest.json build`).
 
-One-time setup: **Settings → Pages → Source → GitHub Actions**. After that the
-schedule takes over.
+One-time setup: **Settings → Pages → Source → GitHub Actions**. Until that is
+switched on the workflow still builds and checks the site every run, it just
+has nowhere to deploy to, and says so in the run summary rather than failing.
 
 The workflows act on whatever branch the repository calls default — GitHub
 only runs `schedule` triggers there — so nothing is hardcoded to `main`. The
