@@ -72,6 +72,25 @@ class DivisionTests(unittest.TestCase):
         self.assertEqual(winners, {"East": "E1", "West": "W1"})
 
 
+    def test_a_member_espn_filed_under_no_division_still_appears(self):
+        season = make_season(
+            {"Sun Belt Conference": ["E1", "E2", "W1", "W2", "Orphan"]},
+            [
+                ("E1", "E2", 21, 14), ("W1", "W2", 28, 10),
+                ("E1", "W1", 24, 21), ("Orphan", "E2", 30, 7),
+            ],
+            divisions={"Sun Belt Conference": {"East": ["E1", "E2"], "West": ["W1", "W2"]}},
+        )
+        report = build_report(season, load_rules(2026))
+        conf = next(c for c in report["conferences"] if "Sun Belt" in c["name"])
+        self.assertEqual([b["title"] for b in conf["blocks"]], ["East", "West", "Unassigned"])
+        listed = {r["name"] for b in conf["blocks"] for r in b["rows"]}
+        self.assertIn("Orphan", listed)
+        # ... but it cannot be a championship-game participant
+        winners = {t["division"] for t in conf["championship"]["teams"]}
+        self.assertEqual(winners, {"East", "West"})
+
+
 class FullSeasonTests(unittest.TestCase):
     def setUp(self):
         self.season = fixture_season()

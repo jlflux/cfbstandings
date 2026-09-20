@@ -51,6 +51,10 @@ class Game:
     broadcast: str = ""
     espn_conference_game: bool | None = None
     notes: str = ""
+    # ESPN's own record for each team as of this game, when the feed carries
+    # it: {team_id: {"overall": "3-0", "vs. conf.": "1-0"}}. Used only to
+    # cross-check the records computed here.
+    espn_records: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @property
     def kickoff(self) -> dt.datetime | None:

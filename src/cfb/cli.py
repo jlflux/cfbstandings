@@ -21,6 +21,8 @@ from .model import Season
 from .render import write_site
 from .report import build_report
 from .rules import load_rules
+from .standings import build_standings
+from .verify import cross_check
 
 log = logging.getLogger("cfb")
 
@@ -69,6 +71,13 @@ def cmd_build(args) -> int:
     rulebook = load_rules(season.year, args.rules_dir)
     report = build_report(season, rulebook)
     written = write_site(report, args.out)
+
+    problems, checked = cross_check(season, build_standings(season))
+    if checked:
+        status = f"{len(problems)} discrepancies" if problems else "all agree"
+        print(f"cross-check vs ESPN's own records: {checked} teams, {status}")
+    for problem in problems[:15]:
+        log.warning("record mismatch - %s", problem)
 
     unresolved = [c["name"] for c in report["conferences"] if c["unresolved"]]
     print(
@@ -129,6 +138,22 @@ def cmd_probe(args) -> int:
     return 0
 
 
+def cmd_verify(args) -> int:
+    season = _load_season(args)
+    problems, checked = cross_check(season, build_standings(season))
+    print(f"checked {checked} FBS teams against ESPN's own records")
+    for problem in problems:
+        print(f"  MISMATCH {problem}")
+    if not checked:
+        print("  ESPN did not supply records in this feed; nothing to compare")
+        return 0
+    if problems:
+        print(f"\n{len(problems)} discrepancies - the game sweep is probably incomplete")
+        return 1
+    print("  every team agrees")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="cfb", description=__doc__)
     parser.add_argument("--season", type=int, default=None, help="season year (default: whatever ESPN says is current)")
@@ -152,6 +177,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     probe = sub.add_parser("probe", help="print endpoint samples for validation")
     probe.set_defaults(func=cmd_probe)
+
+    verify = sub.add_parser(
+        "verify", help="compare the computed records against ESPN's own"
+    )
+    verify.set_defaults(func=cmd_verify)
 
     return parser
 

@@ -450,7 +450,7 @@ def _parse_event(event: dict[str, Any], year: int, season_type: int, week: int) 
             notes = note["headline"]
             break
 
-    return Game(
+    game = Game(
         id=str(event.get("id") or comp.get("id") or ""),
         date=_normalise_date(comp.get("date") or event.get("date") or ""),
         season=year,
@@ -470,6 +470,29 @@ def _parse_event(event: dict[str, Any], year: int, season_type: int, week: int) 
         espn_conference_game=comp.get("conferenceCompetition"),
         notes=notes,
     )
+    game.espn_records = {
+        game.home_id: _competitor_records(home),
+        game.away_id: _competitor_records(away),
+    }
+    return game
+
+
+def _competitor_records(competitor: dict[str, Any]) -> dict[str, str]:
+    """ESPN attaches each team's record as of that game, which is used to
+    cross-check the records computed here. The key varies by feed, and it is
+    absent on scheduled games, so everything is optional."""
+    raw = competitor.get("records") or competitor.get("record") or []
+    if isinstance(raw, dict):
+        raw = [raw]
+    out: dict[str, str] = {}
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        name = (entry.get("name") or entry.get("type") or "").lower()
+        summary = entry.get("summary") or entry.get("displayValue") or ""
+        if name and summary:
+            out[name] = summary
+    return out
 
 
 def _event_week(event: dict[str, Any], fallback: int) -> int:

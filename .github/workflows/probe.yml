@@ -43,6 +43,11 @@ jobs:
                   mark = "  ok " if n["resolved"] else "  ?? "
                   print(f"{mark}{', '.join(n['tied'])} @ {n['at_record']}: {n['summary'][:90]}")
           PY
+      - name: Cross-check the computed records against ESPN's own
+        env:
+          PYTHONPATH: src
+        run: python -m cfb --season-file season.json verify
+
       - name: Commit the live snapshot for review   # TEMP, with the push trigger
         if: github.event_name == 'push'
         run: |

@@ -194,7 +194,14 @@ def build_conference_report(
 
     if structure == "divisions" and conference.divisions:
         division_winners: list[tuple[str, str, bool]] = []
-        for div_name, members in conference.divisions.items():
+        assigned = {t for members in conference.divisions.values() for t in members}
+        divisions = dict(conference.divisions)
+        # A conference member ESPN did not file under either division would
+        # otherwise vanish from the page entirely.
+        unassigned = [t for t in pool if t not in assigned]
+        if unassigned:
+            divisions["Unassigned"] = unassigned
+        for div_name, members in divisions.items():
             members = [t for t in members if t in table]
             if not members:
                 continue
@@ -216,11 +223,14 @@ def build_conference_report(
                     "contested": contested,
                 }
                 for div, team_id, contested in division_winners
+                if div != "Unassigned"
             ],
         }
         for block in blocks:
+            if block.title == "Unassigned":
+                continue
             for row in block.rows:
-                if row.position == 1:
+                if row.position == 1 and table[row.team_id].conference.games:
                     row.berth = "Division leader"
     elif structure == "no_championship":
         levels = [[t] for t in sorted(
