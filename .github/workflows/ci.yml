@@ -29,3 +29,8 @@ jobs:
 
       - name: Check the rule files parse and every step is implemented
         run: python scripts/check_rules.py
+
+      - name: Check TIEBREAKERS.md matches the rule files
+        run: |
+          python scripts/render_rules_doc.py
+          git diff --exit-code TIEBREAKERS.md

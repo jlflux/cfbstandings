@@ -386,9 +386,13 @@ def step_ranking(ctx: TieContext, ids: list[str], params: dict) -> StepOutcome:
             poll_name = name
             break
     if not table:
+        label = params.get("poll_label", "the poll this step cites")
         return StepOutcome(
             halt=True,
-            halt_reason=f"poll not published yet ({'/'.join(params.get('polls', []))})",
+            halt_reason=(
+                f"the next step is {label}, which has not been published yet; "
+                f"this tie can only be settled once it is"
+            ),
             summary="ranking step could not be evaluated",
         )
     ranked = {t: table.get(t) for t in ids}

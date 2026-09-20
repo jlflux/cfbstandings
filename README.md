@@ -58,7 +58,8 @@ saying so.
 
 The rules live in [`data/rules/2026/`](data/rules/2026), one JSON file per
 conference, each carrying its sources, a `verified_on` date and a
-`confidence` rating. Correcting a rule is a JSON edit — no code change — and
+`confidence` rating. [`TIEBREAKERS.md`](TIEBREAKERS.md) renders all of them in
+readable form and is regenerated from the JSON (CI fails if it drifts). Correcting a rule is a JSON edit — no code change — and
 `scripts/check_rules.py` (run in CI) rejects unknown steps, missing labels and
 procedures that do not end in a draw or an unavailable metric.
 
@@ -75,9 +76,24 @@ is needed.
 * `sports.core.api.espn.com` group tree → conference and division membership
   for the season. Membership is read from ESPN every run rather than
   hard-coded, so realignment needs no code change.
-* `site.api.espn.com/.../scoreboard` → every game, week by week.
+* `site.api.espn.com/.../scoreboard` → every game.
 * `site.api.espn.com/.../rankings` → AP and CFP polls, used both for display
   and for the conferences whose procedures cite the CFP ranking.
+
+One quirk shapes the whole ingest: **the scoreboard returns at most 25 events
+per response and ignores `limit`**, so a Saturday cannot be read in one call —
+asking for the whole FBS group week by week quietly returns about a third of
+the season and leaves every conference record wrong. It does honour `groups`,
+and a group filter matches a game when *either* team belongs to it, so the
+sweep runs conference by conference: that covers non-conference games too and
+keeps each response comfortably under the cap. If a response ever does hit 25
+it is re-read a day at a time, using the week's span from ESPN's own calendar,
+and the results merged.
+
+The sweep stops two weeks past the current one — past weeks are settled,
+future weeks hold nothing but kickoff times — and only the week in play
+bypasses the response cache, so a Saturday refresh is a small number of live
+requests rather than a re-read of the season.
 
 A game counts toward the conference standings when both teams are in the same
 conference, which is computed here rather than taken from ESPN's own flag —

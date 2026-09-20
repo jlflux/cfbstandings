@@ -44,7 +44,12 @@ def sportsource(metric):
     return step("unavailable_metric", metric, metric=metric)
 
 
-CFP = step("ranking", "Highest College Football Playoff committee ranking", polls=["cfp", "playoff"])
+CFP = step(
+    "ranking",
+    "Highest College Football Playoff committee ranking",
+    polls=["cfp", "playoff"],
+    poll_label="the College Football Playoff committee rankings (first published in early November)",
+)
 
 RULES = {
     "sec": {

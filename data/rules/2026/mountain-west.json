@@ -31,7 +31,8 @@
         "polls": [
           "cfp",
           "playoff"
-        ]
+        ],
+        "poll_label": "the College Football Playoff committee rankings (first published in early November)"
       }
     },
     {
@@ -66,7 +67,8 @@
         "polls": [
           "cfp",
           "playoff"
-        ]
+        ],
+        "poll_label": "the College Football Playoff committee rankings (first published in early November)"
       }
     },
     {
