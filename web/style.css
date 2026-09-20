@@ -99,7 +99,7 @@ section.conference {
   border-radius: var(--radius);
   margin-bottom: 18px;
   overflow: hidden;
-  scroll-margin-top: 140px;
+  scroll-margin-top: 176px;
 }
 .conf-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
 .conf-header h2 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
@@ -149,6 +149,9 @@ td.team { width: 40%; }
 td.pct { color: var(--muted); }
 
 .logo { vertical-align: -4px; margin-right: 6px; }
+/* a logo that fails to load is hidden by app.js rather than showing a
+   broken-image glyph; the space stays reserved so rows keep their rhythm */
+.logo.failed { visibility: hidden; }
 .logo.placeholder { display: inline-block; width: 20px; height: 20px; }
 .rank {
   font-family: var(--mono);

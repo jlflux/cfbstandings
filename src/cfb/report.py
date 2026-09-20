@@ -254,6 +254,7 @@ def build_conference_report(
             participants.extend(level)
         if not started:
             participants = []
+            contested = False
         champ = {
             "format": "top two by conference win pct",
             "contested": contested,
@@ -321,6 +322,16 @@ def build_report(season: Season, rulebook: RuleBook) -> dict[str, Any]:
     }
 
 
+def _conference_tag(season: Season, game: Game, home) -> str:
+    """Short conference name, and only for games that count in a race."""
+    if not home or not home.conference_id or not season.is_conference_game(game):
+        return ""
+    conference = season.conferences.get(home.conference_id)
+    if conference is None:
+        return home.conference_name
+    return conference.short_name or conference.name
+
+
 def build_scoreboard(season: Season, weeks: int = 2) -> list[dict[str, Any]]:
     """Recent and in-progress games, newest week first."""
     by_week: dict[tuple[int, int], list[Game]] = {}
@@ -350,7 +361,7 @@ def build_scoreboard(season: Season, weeks: int = 2) -> list[dict[str, Any]]:
                     "status": game.short_detail or game.status_detail,
                     "neutral": game.neutral_site,
                     "conference_game": season.is_conference_game(game),
-                    "conference": (home.conference_name if home and season.is_conference_game(game) else ""),
+                    "conference": _conference_tag(season, game, home),
                     "home": {
                         "id": game.home_id,
                         "name": home.name if home else "TBD",

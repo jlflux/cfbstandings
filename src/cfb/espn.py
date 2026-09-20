@@ -101,7 +101,7 @@ class EspnClient:
 
             # Divisions (e.g. the Sun Belt's East/West) come through as
             # children of the conference group.
-            for div_ref in _child_refs(group):
+            for div_ref in self._child_refs(group):
                 division = self.http.get_json(_strip_ref(div_ref))
                 div_name = _division_label(
                     conf, division.get("name") or division.get("shortName") or ""
@@ -119,6 +119,31 @@ class EspnClient:
             conferences[conf_id] = conf
 
         return conferences, team_conf, team_div
+
+    def _child_refs(self, group: dict[str, Any]) -> list[str]:
+        """Division groups under a conference.
+
+        ESPN returns ``children`` either inline or, more often, as a ``$ref``
+        pointing at the collection - which is why the Sun Belt's divisions
+        have to be followed rather than read straight off the group.
+        """
+        children = group.get("children")
+        items: list[dict[str, Any]] = []
+        if isinstance(children, dict):
+            if children.get("items"):
+                items = children["items"]
+            elif children.get("$ref"):
+                try:
+                    payload = self.http.get_json(
+                        _strip_ref(children["$ref"]), {"limit": 50}
+                    )
+                except FetchError as exc:
+                    log.warning("division list failed for group %s: %s", group.get("id"), exc)
+                    return []
+                items = payload.get("items", [])
+        elif isinstance(children, list):
+            items = children
+        return [item.get("$ref", "") for item in items if item.get("$ref")]
 
     def _group_team_ids(self, group: dict[str, Any]) -> list[str]:
         ref = (group.get("teams") or {}).get("$ref")
@@ -387,17 +412,6 @@ def _group_logo(group: dict[str, Any]) -> str:
     if isinstance(logos, list) and logos:
         return logos[0].get("href", "")
     return ""
-
-
-def _child_refs(group: dict[str, Any]) -> list[str]:
-    children = group.get("children") or {}
-    if isinstance(children, dict):
-        items = children.get("items") or []
-    elif isinstance(children, list):
-        items = children
-    else:
-        items = []
-    return [item.get("$ref", "") for item in items if item.get("$ref")]
 
 
 def _parse_team(raw: dict[str, Any]) -> Team | None:

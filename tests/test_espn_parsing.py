@@ -10,7 +10,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from cfb.espn import _child_refs, _parse_event, _parse_team, _ref_id, _score  # noqa: E402
+from cfb.espn import EspnClient, _parse_event, _parse_team, _ref_id, _score  # noqa: E402
 
 REF = (
     "http://sports.core.api.espn.com/v2/sports/football/leagues/college-football"
@@ -31,12 +31,42 @@ class RefTests(unittest.TestCase):
     def test_non_numeric_ref_is_ignored(self):
         self.assertIsNone(_ref_id("http://x/groups/standings?lang=en"))
 
-    def test_child_refs_handles_both_shapes(self):
-        as_dict = {"children": {"items": [{"$ref": "a"}, {"$ref": "b"}]}}
-        as_list = {"children": [{"$ref": "a"}]}
-        self.assertEqual(_child_refs(as_dict), ["a", "b"])
-        self.assertEqual(_child_refs(as_list), ["a"])
-        self.assertEqual(_child_refs({}), [])
+
+class ChildRefTests(unittest.TestCase):
+    """Divisions arrive inline, as a list, or - most often - as a $ref to the
+    collection, which has to be followed."""
+
+    class Stub:
+        def __init__(self, payload=None):
+            self.payload = payload or {}
+            self.fetched = []
+
+        def get_json(self, url, params=None, no_cache=False):
+            self.fetched.append(url)
+            return self.payload
+
+    def test_inline_items(self):
+        client = EspnClient(self.Stub())
+        group = {"children": {"items": [{"$ref": "a"}, {"$ref": "b"}]}}
+        self.assertEqual(client._child_refs(group), ["a", "b"])
+        self.assertEqual(client.http.fetched, [])
+
+    def test_plain_list(self):
+        client = EspnClient(self.Stub())
+        self.assertEqual(client._child_refs({"children": [{"$ref": "a"}]}), ["a"])
+
+    def test_ref_to_the_collection_is_followed(self):
+        stub = self.Stub({"items": [{"$ref": "east"}, {"$ref": "west"}]})
+        client = EspnClient(stub)
+        group = {"children": {"$ref": "http://sports.core.api.espn.com/v2/…/groups/37/children"}}
+        self.assertEqual(client._child_refs(group), ["east", "west"])
+        self.assertEqual(len(stub.fetched), 1)
+        self.assertTrue(stub.fetched[0].startswith("https://"), "http refs are upgraded")
+
+    def test_no_children(self):
+        client = EspnClient(self.Stub())
+        self.assertEqual(client._child_refs({}), [])
+        self.assertEqual(client._child_refs({"children": None}), [])
 
 
 class EventTests(unittest.TestCase):

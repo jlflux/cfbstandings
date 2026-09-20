@@ -16,6 +16,14 @@
     el.title = raw;
   });
 
+  // ESPN occasionally drops a logo; hide it rather than show a broken glyph.
+  document.querySelectorAll("img.logo").forEach(function (img) {
+    if (img.complete && img.naturalWidth === 0) img.classList.add("failed");
+    img.addEventListener("error", function () {
+      img.classList.add("failed");
+    });
+  });
+
   var KEY = "cfb-open-panels";
   var open;
   try {

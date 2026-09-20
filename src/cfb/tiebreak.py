@@ -113,6 +113,12 @@ def _pct(record: Record) -> float:
     return record.pct
 
 
+def _pct_label(value: float) -> str:
+    """.500 / 1.000, the way a standings table writes it."""
+    text = f"{value:.3f}"
+    return text if value >= 1 else text.lstrip("0")
+
+
 # --------------------------------------------------------------------------
 # steps
 # --------------------------------------------------------------------------
@@ -251,7 +257,7 @@ def step_conference_opponents_win_pct(ctx: TieContext, ids: list[str], params: d
             wins += standing.conference.wins + 0.5 * standing.conference.ties
             games += standing.conference.games
         scores[team_id] = (wins / games) if games else 0.0
-        details[team_id] = f".{int(round(scores[team_id] * 1000)):03d} opponents' conference win pct"
+        details[team_id] = f"{_pct_label(scores[team_id])} opponents' conference win pct"
     if len(set(round(v, 9) for v in scores.values())) == 1:
         return StepOutcome(summary="opponents' conference win pct identical")
     return StepOutcome(
@@ -280,7 +286,7 @@ def step_all_opponents_win_pct(ctx: TieContext, ids: list[str], params: dict) ->
             wins += standing.overall.wins + 0.5 * standing.overall.ties
             games += standing.overall.games
         scores[team_id] = (wins / games) if games else 0.0
-        details[team_id] = f".{int(round(scores[team_id] * 1000)):03d} opponents' overall win pct"
+        details[team_id] = f"{_pct_label(scores[team_id])} opponents' overall win pct"
     if len(set(round(v, 9) for v in scores.values())) == 1:
         return StepOutcome(summary="opponents' overall win pct identical")
     note = " (FBS opponents only)" if skipped else ""
