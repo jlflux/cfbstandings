@@ -72,6 +72,19 @@ class DivisionTests(unittest.TestCase):
         self.assertEqual(winners, {"East": "E1", "West": "W1"})
 
 
+    def test_no_division_leader_before_conference_play_starts(self):
+        season = make_season(
+            {"Sun Belt Conference": ["E1", "E2", "W1", "W2"]},
+            [("E1", "E2"), ("W1", "W2")],       # scheduled, not played
+            divisions={"Sun Belt Conference": {"East": ["E1", "E2"], "West": ["W1", "W2"]}},
+        )
+        report = build_report(season, load_rules(2026))
+        conf = next(c for c in report["conferences"] if "Sun Belt" in c["name"])
+        self.assertEqual(conf["championship"]["teams"], [])
+        for block in conf["blocks"]:
+            for row in block["rows"]:
+                self.assertEqual(row["berth"], "")
+
     def test_a_member_espn_filed_under_no_division_still_appears(self):
         season = make_season(
             {"Sun Belt Conference": ["E1", "E2", "W1", "W2", "Orphan"]},

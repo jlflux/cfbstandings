@@ -9,6 +9,9 @@ rebuilt from ESPN's public data and published as a static site.
 * **Tiebreakers** — the exact procedure encoded for each conference, with
   sources, so the ordering above can be checked rather than trusted.
 
+Built and checked against live ESPN data: every one of the 138 FBS teams'
+records agrees with ESPN's own.
+
 ## Update cadence
 
 | When | Frequency |
@@ -122,8 +125,17 @@ shapes, which is what the tests and the CI build run against.
 ## Publishing
 
 The site deploys to GitHub Pages from the workflow artifact — nothing is
-committed except the daily data snapshot. Set **Settings → Pages → Source**
-to **GitHub Actions** once, and the schedule takes it from there.
+committed except the daily data snapshot in `data/latest.json`, which doubles
+as an offline fixture (`python -m cfb --season-file data/latest.json build`).
+
+One-time setup: **Settings → Pages → Source → GitHub Actions**. After that the
+schedule takes over.
+
+The workflows act on whatever branch the repository calls default — GitHub
+only runs `schedule` triggers there — so nothing is hardcoded to `main`. The
+guard step compares against `github.event.repository.default_branch`, which
+means a push to any other branch builds nothing and the daily snapshot is only
+committed on the default branch.
 
 ## Layout
 

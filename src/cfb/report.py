@@ -212,7 +212,11 @@ def build_conference_report(
             rows = _build_rows(season, table, levels)
             blocks.append(Block(title=div_name, rows=rows))
             top = levels[0] if levels else []
-            division_winners.append((div_name, top[0] if top else "", len(top) > 1))
+            # Before a division has played a conference game there is no
+            # leader to name, only an alphabetical list.
+            started = any(table[t].conference.games for t in members)
+            winner = top[0] if (top and started) else ""
+            division_winners.append((div_name, winner, len(top) > 1))
         champ = {
             "format": "division champions",
             "teams": [
@@ -223,7 +227,7 @@ def build_conference_report(
                     "contested": contested,
                 }
                 for div, team_id, contested in division_winners
-                if div != "Unassigned"
+                if div != "Unassigned" and team_id
             ],
         }
         for block in blocks:

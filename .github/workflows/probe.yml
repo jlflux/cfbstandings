@@ -3,8 +3,6 @@ name: Probe ESPN
 # Run by hand to check that ESPN's responses still parse the way the client
 # expects - useful after a season rolls over or ESPN changes a payload.
 on:
-  push:
-    branches: ['claude/**']   # TEMP: validating ESPN parsing, removed before merge
   workflow_dispatch:
     inputs:
       season:
@@ -14,8 +12,6 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,22 +43,6 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m cfb --season-file season.json verify
-
-      - name: Commit the live snapshot for review   # TEMP, with the push trigger
-        if: github.event_name == 'push'
-        run: |
-          set -euo pipefail
-          mkdir -p data
-          cp season.json data/latest.json
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f data/latest.json
-          if git diff --cached --quiet; then
-            echo "no change"
-          else
-            git commit -m "Live ESPN snapshot for review"
-            git push origin HEAD:${{ github.ref_name }}
-          fi
 
       - uses: actions/upload-artifact@v4
         with:
