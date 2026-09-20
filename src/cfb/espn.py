@@ -33,12 +33,14 @@ FCS_GROUP = "81"
 MAX_REGULAR_WEEKS = 17
 MAX_POSTSEASON_WEEKS = 6
 
-_REF_ID = re.compile(r"/(\d+)(?:\?|$)")
-
-
 def _ref_id(ref: str) -> str | None:
-    match = _REF_ID.search(ref.split("/teams/")[-1] if "/teams/" in ref else ref)
-    return match.group(1) if match else None
+    """The trailing numeric path segment of a core-API $ref.
+
+    Refs look like ".../groups/8/teams/2005?lang=en&region=us", so the id is
+    the last path segment once the query string is gone.
+    """
+    segment = ref.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
+    return segment if segment.isdigit() else None
 
 
 def _strip_ref(ref: str) -> str:
