@@ -80,6 +80,12 @@ a { color: var(--gold); }
   text-transform: uppercase;
   color: var(--text-faint);
 }
+/* An old build looks identical to a fresh one unless it says so. */
+.stamp time.stale {
+  color: #e0a24f;
+  border-bottom: 1px dotted currentColor;
+  padding-bottom: 2px;
+}
 
 nav.pages {
   display: flex;

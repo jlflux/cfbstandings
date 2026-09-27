@@ -264,7 +264,10 @@ def _pills(report: dict[str, Any], active: str) -> str:
 
 
 def _masthead(report: dict[str, Any], page: str, lede: str) -> str:
-    generated = report.get("generated_at", "")
+    # When the scores were pulled from ESPN, not when the page was rendered.
+    # Those are seconds apart on a normal run, but a build that fell back to a
+    # stored snapshot would otherwise claim to be fresh.
+    generated = report.get("data_fetched_at") or report.get("generated_at", "")
     nav = "".join(
         f'<a class="{"on" if key == page else ""}" href="{href}">{label}</a>'
         for key, href, label in (
@@ -284,7 +287,7 @@ def _masthead(report: dict[str, Any], page: str, lede: str) -> str:
   </p>
   <p class="stamp">
     <time datetime="{esc(generated)}" data-utc="{esc(generated)}">updated {esc(generated)}</time>
-    &middot; live from ESPN
+    &middot; from ESPN
   </p>
   <nav class="pages">{nav}</nav>
 </header>"""

@@ -147,13 +147,28 @@ ESPN is unreachable from the build, `build.sh` falls back to the committed
 `data/latest.json` snapshot so the deploy still produces a working site
 instead of failing.
 
-Vercel only rebuilds on a push or a deploy hook, so a deploy hook is what keeps
-a Vercel copy current. Create one under **Settings → Git → Deploy Hooks**, save
-the URL as the `VERCEL_DEPLOY_HOOK` repository secret, and the workflow pokes it
-**once a day**. That deliberately does not fire every ten minutes: Vercel's
-Hobby plan caps daily deployments, and a Saturday at full cadence would be
-about a hundred of them. Set the repository variable `VERCEL_HOOK_EVERY_RUN` to
-`true` to opt into the full cadence anyway.
+**Vercel only redeploys on a push or a deploy hook.** Without a hook, the only
+push it ever sees is the daily snapshot commit — which lands around 8am Central
+and then sits there all Saturday, so the page shows the morning's data while
+every game is being played. That is the single most likely reason a Vercel copy
+looks frozen.
+
+To keep it current, create a hook under **Settings → Git → Deploy Hooks**, save
+the URL as the `VERCEL_DEPLOY_HOOK` repository secret, and set the
+`VERCEL_HOOK_MODE` repository variable:
+
+| `VERCEL_HOOK_MODE` | Fires | Deploys on a Saturday |
+| --- | --- | --- |
+| unset / `daily` | once, on the daily run | 1 |
+| `hourly` | about once an hour through the window | ~16 |
+| `live` | every run, matching Pages | ~90 |
+
+Vercel's Hobby plan caps deployments per day, which is why `live` is opt-in and
+`hourly` is usually the right answer for a Vercel-hosted copy.
+
+Whatever the host, the page states when the scores were last pulled from ESPN —
+not when the page was built — and turns that stamp amber once it is more than
+ninety minutes old, so a stale copy says so instead of looking live.
 
 The workflows act on whatever branch the repository calls default — GitHub
 only runs `schedule` triggers there — so nothing is hardcoded to `main`. The

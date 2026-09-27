@@ -109,14 +109,19 @@ jobs:
           fi
 
       # Optional: if the repository has a VERCEL_DEPLOY_HOOK secret, poke it so
-      # a Vercel-hosted copy rebuilds too. Vercel's Hobby plan caps daily
-      # deployments, so this fires only on the daily run unless
-      # VERCEL_HOOK_EVERY_RUN is set to "true".
+      # a Vercel-hosted copy rebuilds too. Vercel only deploys on a push or a
+      # hook, so without this a Vercel copy only ever updates on the daily
+      # snapshot commit - which lands before kickoff and then sits there all
+      # Saturday. How often it fires is set by the VERCEL_HOOK_MODE repository
+      # variable, because Vercel's Hobby plan caps deployments per day:
+      #   daily  (default) - once, on the daily run
+      #   hourly           - about once an hour through the Saturday window
+      #   live             - every run, matching GitHub Pages
       - name: Trigger the Vercel deploy hook
         if: steps.window.outputs.run == 'true'
         env:
           HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
-          EVERY_RUN: ${{ vars.VERCEL_HOOK_EVERY_RUN }}
+          MODE: ${{ vars.VERCEL_HOOK_MODE }}
           DAILY: ${{ steps.window.outputs.daily }}
         run: |
           set -euo pipefail
@@ -124,12 +129,34 @@ jobs:
             echo "No VERCEL_DEPLOY_HOOK secret set - nothing to trigger."
             exit 0
           fi
-          if [ "$DAILY" != "true" ] && [ "$EVERY_RUN" != "true" ]; then
-            echo "Not the daily run and VERCEL_HOOK_EVERY_RUN is not set - skipping."
+
+          mode="${MODE:-daily}"
+          minute=$((10#$(TZ=America/Chicago date +%M)))
+          fire=false
+          case "$mode" in
+            live)
+              fire=true
+              ;;
+            hourly)
+              # Runs land at least ten minutes apart, so the top of the hour
+              # catches roughly one of them.
+              if [ "$DAILY" = "true" ] || [ "$minute" -lt 10 ]; then
+                fire=true
+              fi
+              ;;
+            *)
+              if [ "$DAILY" = "true" ]; then
+                fire=true
+              fi
+              ;;
+          esac
+
+          if [ "$fire" != "true" ]; then
+            echo "VERCEL_HOOK_MODE=$mode and this is not a firing run - skipping."
             exit 0
           fi
           code=$(curl -sS -X POST -o /dev/null -w '%{http_code}' "$HOOK")
-          echo "Vercel deploy hook responded $code"
+          echo "Vercel deploy hook responded $code (mode=$mode)"
 
       # Left to the repository owner to switch on, since it publishes a
       # public URL. Until then the build still runs and is still checked,

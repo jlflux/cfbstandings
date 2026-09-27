@@ -61,17 +61,40 @@
     });
   });
 
-  /* ---- local time, and logos ESPN failed to serve ------------------ */
-  document.querySelectorAll("time[data-utc]").forEach(function (el) {
-    var raw = el.getAttribute("data-utc");
-    var when = raw ? new Date(raw) : null;
-    if (!when || isNaN(when.getTime())) return;
-    el.textContent = "updated " + new Intl.DateTimeFormat(undefined, {
-      month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-      timeZoneName: "short"
-    }).format(when);
-    el.title = raw;
-  });
+  /* ---- local time and how old this copy is ------------------------- */
+  // A host that only redeploys on a git push can serve a build from hours
+  // ago without looking any different, so the age is spelled out and goes
+  // amber once the page is too old to be trusted as live.
+  function ago(minutes) {
+    if (minutes < 2) return "just now";
+    if (minutes < 60) return Math.round(minutes) + " min ago";
+    var hours = minutes / 60;
+    if (hours < 24) {
+      var rounded = Math.round(hours * 10) / 10;
+      return rounded + (rounded === 1 ? " hour ago" : " hours ago");
+    }
+    var days = Math.round(hours / 24);
+    return days + (days === 1 ? " day ago" : " days ago");
+  }
+
+  function paintAge() {
+    document.querySelectorAll("time[data-utc]").forEach(function (el) {
+      var raw = el.getAttribute("data-utc");
+      var when = raw ? new Date(raw) : null;
+      if (!when || isNaN(when.getTime())) return;
+      var minutes = (Date.now() - when.getTime()) / 60000;
+      var stamp = new Intl.DateTimeFormat(undefined, {
+        month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+        timeZoneName: "short"
+      }).format(when);
+      el.textContent = "updated " + stamp + " \u00b7 " + ago(minutes);
+      el.title = raw;
+      el.classList.toggle("stale", minutes > 90);
+    });
+  }
+
+  paintAge();
+  setInterval(paintAge, 60000);
 
   document.querySelectorAll("img.logo").forEach(function (img) {
     if (img.complete && img.naturalWidth === 0) img.classList.add("failed");
